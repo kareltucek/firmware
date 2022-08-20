@@ -4,6 +4,8 @@
 #include "slave_drivers/is31fl3xxx_driver.h"
 #include "device.h"
 #include "config_parser/config_globals.h"
+#include "debug.h"
+#include "macros.h"
 
 backlight_strategy_t LedMap_BacklightStrategy = BacklightStrategy_Functional;
 
@@ -19,6 +21,8 @@ rgb_t KeyActionColors[] = {
     {.red=0, .green=255, .blue=0}, // KeyActionColor_Mouse
     {.red=255, .green=0, .blue=255}, // KeyActionColor_Macro
 };
+
+bool LedMap2[SLOT_COUNT][MAX_KEY_COUNT_PER_MODULE];
 
 rgb_t LedMap[SLOT_COUNT][MAX_KEY_COUNT_PER_MODULE] = {
     // All three values must be set to 0 for unused
@@ -139,8 +143,14 @@ rgb_t LedMap[SLOT_COUNT][MAX_KEY_COUNT_PER_MODULE] = {
     },
 };
 
+void ledA() {}
+void ledB() {}
+
 static void updateLedsByConstantRgbStrategy() {
 #if DEVICE_ID == DEVICE_ID_UHK60V2
+    SHOW_STRING("C", 5);
+    ledA();
+    rgb_t black = {0, 0, 0};
     for (uint8_t slotId=0; slotId<SLOT_COUNT; slotId++) {
         for (uint8_t keyId=0; keyId<MAX_KEY_COUNT_PER_MODULE; keyId++) {
             rgb_t *keyActionColorValues = &LedMap_ConstantRGB;
@@ -148,17 +158,84 @@ static void updateLedsByConstantRgbStrategy() {
             if (ledMapItem->red == 0 && ledMapItem->green == 0 && ledMapItem->blue == 0) {
                 continue;
             }
+
             LedDriverValues[slotId][ledMapItem->red] = keyActionColorValues->red * KeyBacklightBrightness / 255;
             float brightnessDivisor = slotId == SlotId_LeftModule ? 2 : 1;
             LedDriverValues[slotId][ledMapItem->green] = keyActionColorValues->green * KeyBacklightBrightness / brightnessDivisor / 255;
             LedDriverValues[slotId][ledMapItem->blue] = keyActionColorValues->blue * KeyBacklightBrightness / 255;
         }
     }
+    ledB();
 #endif
 }
 
+volatile uint8_t singleTarget;
+volatile uint8_t target[256];
+
+
+static void updateLedsByTestStrategy() {
+#if DEVICE_ID == DEVICE_ID_UHK60V2
+    SHOW_STRING("C", 5);
+    ledA();
+    rgb_t black = {0, 0, 0};
+
+    uint8_t k = 15;
+
+    for (uint8_t slotId=0; slotId<SLOT_COUNT; slotId++) {
+        for (uint8_t keyId=0; keyId<MAX_KEY_COUNT_PER_MODULE; keyId++) {
+            rgb_t *keyActionColorValues = &LedMap_ConstantRGB;
+            rgb_t *ledMapItem = &LedMap[slotId][keyId];
+            if (ledMapItem->red == 0 && ledMapItem->green == 0 && ledMapItem->blue == 0) {
+                continue;
+            }
+
+            switch(CurrentWatch) {
+                case 1:
+                    k=15;
+                    if (keyId % k != k-1) {
+                        keyActionColorValues = &black;
+                    }
+                    break;
+                case 2:
+                    k=16;
+                    if (keyId % k != k-1) {
+                        keyActionColorValues = &black;
+                    }
+                    break;
+                case 3:
+                    if (slotId == 0) {
+                        keyActionColorValues = &black;
+                    }
+                    break;
+                case 4:
+                    if (slotId == 1) {
+                        keyActionColorValues = &black;
+                    }
+                    break;
+                case 5:
+                    if (LedMap2[slotId][keyId]) {
+                        keyActionColorValues = &black;
+                    }
+                    break;
+            }
+
+            LedDriverValues[slotId][ledMapItem->red] = keyActionColorValues->red * KeyBacklightBrightness / 255;
+            float brightnessDivisor = slotId == SlotId_LeftModule ? 2 : 1;
+            LedDriverValues[slotId][ledMapItem->green] = keyActionColorValues->green * KeyBacklightBrightness / brightnessDivisor / 255;
+            LedDriverValues[slotId][ledMapItem->blue] = keyActionColorValues->blue * KeyBacklightBrightness / 255;
+        }
+    }
+    ledB();
+#endif
+}
+
+#define CHECK(a) if (a < (uint8_t*)LedDriverValues || a >= ((uint8_t*)LedDriverValues + (LED_DRIVER_MAX_COUNT * LED_DRIVER_LED_COUNT_MAX))) { Macros_ReportError("Out of range!", NULL, NULL); }
+
+
 static void updateLedsByFunctionalStrategy() {
 #if DEVICE_ID == DEVICE_ID_UHK60V2
+    SHOW_STRING("B", 5);
+    CheckRighMatrix();
     for (uint8_t slotId=0; slotId<SLOT_COUNT; slotId++) {
         for (uint8_t keyId=0; keyId<MAX_KEY_COUNT_PER_MODULE; keyId++) {
             key_action_color_t keyActionColor;
@@ -189,25 +266,34 @@ static void updateLedsByFunctionalStrategy() {
                     keyActionColor = KeyActionColor_None;
                     break;
             }
+            //keyActionColor = KeyActionColor_None;
 
             rgb_t *keyActionColorValues = &KeyActionColors[keyActionColor];
             rgb_t *ledMapItem = &LedMap[slotId][keyId];
             if (ledMapItem->red == 0 && ledMapItem->green == 0 && ledMapItem->blue == 0) {
                 continue;
             }
-            LedDriverValues[slotId][ledMapItem->red] = keyActionColorValues->red * KeyBacklightBrightness / 255;
+            uint8_t* r = &LedDriverValues[slotId][ledMapItem->red];
+            uint8_t* g = &LedDriverValues[slotId][ledMapItem->green];
+            uint8_t* b = &LedDriverValues[slotId][ledMapItem->blue];
+            /* CHECK(r); */
+            /* CHECK(g); */
+            /* CHECK(b); */
+            *r = keyActionColorValues->red * KeyBacklightBrightness / 255;
             float brightnessDivisor = slotId == SlotId_LeftModule ? 2 : 1;
-            LedDriverValues[slotId][ledMapItem->green] = keyActionColorValues->green * KeyBacklightBrightness / brightnessDivisor / 255;
-            LedDriverValues[slotId][ledMapItem->blue] = keyActionColorValues->blue * KeyBacklightBrightness / 255;
+            *g = keyActionColorValues->green * KeyBacklightBrightness / brightnessDivisor / 255;
+            *b = keyActionColorValues->blue * KeyBacklightBrightness / 255;
         }
     }
+    CheckRighMatrix();
+    WATCH_VALUE_MAX(1, 2);
 #endif
 }
 
 void UpdateLayerLeds(void) {
     switch (LedMap_BacklightStrategy) {
         case BacklightStrategy_Functional:
-            updateLedsByFunctionalStrategy();
+            updateLedsByTestStrategy();
             break;
         case BacklightStrategy_ConstantRGB:
             updateLedsByConstantRgbStrategy();
@@ -229,3 +315,4 @@ void InitLedLayout(void) {
     }
 #endif
 }
+

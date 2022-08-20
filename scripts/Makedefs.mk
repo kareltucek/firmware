@@ -133,9 +133,9 @@ endif
 # Check if the DEBUG environment variable is set.
 DEBUG ?= 0
 ifeq ($(DEBUG),1)
-    CFLAGS += -O2 -g3 -DDEBUG
+    CFLAGS += -O0 -g3 -DDEBUG
 else
-    CFLAGS += -O2 -DNDEBUG
+    CFLAGS += -O0 -ggdb -DNDEBUG
 endif
 
 # Add the include file paths to AFLAGS and CFLAGS.

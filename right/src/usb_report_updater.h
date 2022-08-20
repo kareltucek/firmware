@@ -34,6 +34,7 @@
 
 // Functions:
 
+    void CheckRighMatrix();
     void UpdateUsbReports(void);
     void ToggleMouseState(serialized_mouse_action_t action, bool activate);
     void ActivateKey(key_state_t *keyState, bool debounce);

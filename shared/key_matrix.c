@@ -1,5 +1,6 @@
 #include "fsl_gpio.h"
 #include "key_matrix.h"
+#include "debug.h"
 
 uint8_t DebounceTimePress = 50, DebounceTimeRelease = 50;
 
@@ -27,7 +28,11 @@ void KeyMatrix_ScanRow(key_matrix_t *keyMatrix)
 
     key_matrix_pin_t *colEnd = keyMatrix->cols + keyMatrix->colNum;
     for (key_matrix_pin_t *col = keyMatrix->cols; col<colEnd; col++) {
-        *(keyState++) = GPIO_ReadPinInput(col->gpio, col->pin);
+        bool state = GPIO_ReadPinInput(col->gpio, col->pin);
+        *(keyState++) = state;
+        if (state) {
+            WATCH_VALUE_MAX(2, 1);
+        }
     }
 
     GPIO_WritePinOutput(row->gpio, row->pin, 0);
