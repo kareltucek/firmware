@@ -1,5 +1,6 @@
 #include <math.h>
 #include "key_action.h"
+#include "ledmap.h"
 #include "led_display.h"
 #include "layer.h"
 #include "usb_interfaces/usb_interface_mouse.h"
@@ -434,6 +435,7 @@ static void updateActiveUsbReports(void)
 
             if (KeyState_NonZero(keyState)) {
                 if (KeyState_ActivatedNow(keyState)) {
+                    LedMap2[slotId][keyId] = !LedMap2[slotId][keyId];
                     // cache action so that key's meaning remains the same as long
                     // as it is pressed
                     actionCache[slotId][keyId].modifierLayerMask = 0;
@@ -454,6 +456,7 @@ static void updateActiveUsbReports(void)
                         actionCache[slotId][keyId].action = CurrentKeymap[ActiveLayer][slotId][keyId];
                     }
                     handleEventInterrupts(keyState);
+                    UpdateLayerLeds();
                 }
 
                 cachedAction = &actionCache[slotId][keyId];
@@ -517,6 +520,8 @@ void UpdateUsbReports(void)
     static uint32_t lastUpdateTime;
     static uint32_t lastReportTime;
     static uint32_t lastActivityTime;
+
+    WATCH_VALUE_MAX(0, 2);
 
     for (uint8_t keyId = 0; keyId < RIGHT_KEY_MATRIX_KEY_COUNT; keyId++) {
         KeyStates[SlotId_RightKeyboardHalf][keyId].hardwareSwitchState = RightKeyMatrix.keyStates[keyId];

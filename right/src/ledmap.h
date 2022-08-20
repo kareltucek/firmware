@@ -39,6 +39,7 @@
     extern rgb_t LedMap_ConstantRGB;
     extern rgb_t KeyActionColors[];
     extern rgb_t LedMap[SLOT_COUNT][MAX_KEY_COUNT_PER_MODULE];
+    extern bool LedMap2[SLOT_COUNT][MAX_KEY_COUNT_PER_MODULE];
 
 // Functions:
 
