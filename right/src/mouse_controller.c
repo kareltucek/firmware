@@ -792,6 +792,10 @@ void MouseController_ProcessMouseActions()
             continue;
         }
 
+        if (moduleState->pointerDelta.x != 0 || moduleState->pointerDelta.y != 0) {
+            WATCH_CALL_COUNT(1);
+        }
+
         __disable_irq();
         // Gcc compiles those int16_t assignments as sequences of
         // single-byte instructions, therefore we need to make the
