@@ -93,16 +93,14 @@ static void slaveSchedulerCallback(I2C_Type *base, i2c_master_handle_t *handle, 
             currentSlave->init(currentSlave->perDriverId);
         }
 
-        bool shouldYield = true;
-        status_t currentStatus = currentSlave->update(currentSlave->perDriverId, &shouldYield);
+        slave_result_t res = currentSlave->update(currentSlave->perDriverId);
+        status_t currentStatus = res.status;
         if (IS_STATUS_I2C_ERROR(currentStatus)) {
             LogI2cError(currentSlaveId, currentStatus);
         }
         isTransferScheduled = currentStatus != kStatus_Uhk_IdleSlave && currentStatus != kStatus_Uhk_IdleCycle;
 
-        bool progressToNextSlave = shouldYield || !currentSlave->isConnected;
-
-        if (progressToNextSlave) {
+        if (!res.hold || !currentSlave->isConnected) {
             previousSlaveId = currentSlaveId++;
             if (currentSlaveId >= SLAVE_COUNT) {
                 currentSlaveId = 0;
