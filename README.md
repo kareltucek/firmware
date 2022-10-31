@@ -28,7 +28,7 @@ Currently, there are following important branches:
  
  - `common_trunk` is branch that contains things that are common (or are intended to become common) between this fork and stock firmware.  
  - `common_trunk_upstream` is similar to `common_trunk`, but merges PRs (built on top of `common_trunk`) before they get accepted into stock firmware. This is my working development version.
- - `master` - merges from `common_trunk`/`common_trunk_upstream`, but contains things specific to this branch. 
+ - `master` - merges from `common_trunk`/`common_trunk_upstream`, but contains things specific to this fork. 
  - `uhk_master` - tracking branch of uhk/master which additionally contains true `common_trunk` merges. All accepted PRs from `common_trunk` into `uhk/master` are furthermore merged into `uhk_master` from both `common_trunk` *and* `uhk_master`. Consequently, `uhk_master` is merged into `common_trunk` and `common_trunk_upstream`. This is prevents merge conflicts (since stock firmware often merges by a squash commit, which only creates a new rebased commit without creating any link to the merged history.)
  
 
