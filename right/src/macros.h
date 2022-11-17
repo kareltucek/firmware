@@ -144,6 +144,7 @@
             bool macroSleeping : 1;
             bool macroBroken : 1;
             bool macroPlaying : 1;
+            bool macroScheduled : 1;
             bool reportsUsed : 1;
             bool wakeMeOnTime : 1;
             bool wakeMeOnKeystateChange: 1;
@@ -227,6 +228,7 @@
     extern layer_id_t Macros_ActiveLayer;
     extern bool Macros_ActiveLayerHeld;
     extern macro_scheduler_t Macros_Scheduler;
+    extern bool Macros_ExtendedCommands;
     extern uint8_t Macros_MaxBatchSize;
     extern uint32_t Macros_WakeMeOnTime;
     extern bool Macros_WakeMeOnKeystateChange;

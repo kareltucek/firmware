@@ -4,13 +4,15 @@ This file contains (semi)formal documentation of all features of the extended en
 
 - You might want to start by reading [user-guide manual](user-guide.md), especially the point on understanding the docs.
 
-- Most of these commands are available only when built with `--extendedMacros` flag. Only `printStatus` and (some portion of) `set` are available otherwise. (Official releases are built *without* this flag.)
+- Note that by default, only `printStatus`, `resetTrackpoint` and (some portion of) `set` are available. Rest can be enabled by `set macroEngine.extendedCommands 1`, but are not officially supported, and are more likely to be unstable, or removed in the future.
 
 - The grammar is meant to be the ultimate information source. Not all commands or parameters are described in the later text.
 
 ### Error handling
 
 Whenever a garbled command is encountered, `ERR` will light up on the display, and details are appended to the error buffer. You can retrieve it by running a `printStatus` macro command over a focused text editor.
+
+Logs are prefixed with macro name, action index and command address.
 
 ## Macro events
 
@@ -60,6 +62,7 @@ The following grammar is supported:
     COMMAND = statsActiveKeys
     COMMAND = statsActiveMacros
     COMMAND = statsRegs
+    COMMAND = resetTrackpoint
     COMMAND = diagnose
     COMMAND = printStatus
     COMMAND = {setStatus  | setStatusPart} <custom text>
@@ -89,6 +92,7 @@ The following grammar is supported:
     COMMAND = set module.MODULEID.axisLockFirstTickSkew <0-2.0 (FLOAT)>
     COMMAND = set module.MODULEID.scrollAxisLock BOOLEAN
     COMMAND = set module.MODULEID.cursorAxisLock BOOLEAN
+    COMMAND = set module.MODULEID.caretAxisLock BOOLEAN
     COMMAND = set module.MODULEID.swapAxes BOOLEAN
     COMMAND = set module.MODULEID.invertScrollDirection BOOLEAN
     COMMAND = set module.touchpad.pinchZoomDivisor <1-100 (FLOAT)>
@@ -208,6 +212,7 @@ The following grammar is supported:
 - `setLedTxt <time> <custom text>` will set led display to supplemented text for the given time. (Blocks for the given time.)
     - If the given time is zero, i.e. `<time> = 0`, the led text will be set indefinitely (until the display is refreshed by other text) and this command will returns immediately (non-blocking).
 - `progressHue` or better `autoRepeat progressHue` will slowly adjust constantRGB value in order to rotate the per-key-RGB backlight through all hues.
+- `resetTrackpoint` resets the internal trackpoint board. Can be used to recover the trackpoint from drift conditions. Drifts usually happen if you keep the cursor moving at slow constant speeds, because of the boards's internal adaptive calibration. Since the board's parameters cannot be altered, the only way around is or you to learn not to do the type of movement which triggers them.
 
 ### Triggering keyboard actions (pressing keys, clicking, etc.):
 
@@ -433,6 +438,7 @@ For the purpose of toggling functionality on and off, and for global constants m
       - or increase baseSpeed
     - If you want to make cursor more responsive overall:
       - you want to increase speed
+
   (Mostly) reasonable examples (`baseSpeed speed xceleration midSpeed`):
     - `0.0 1.0 0.0 3000` (no xceleration)
       - speed multiplier is always 1x at all speeds
@@ -539,4 +545,10 @@ UHK modules feature four navigation modes, which are mapped by layer and module.
 - **Zoom mode** - This mode serves specifically to implement touchpad's gesture. It alternates actions of zoomPc and zoomMac modes. Can be customized via `set module.touchpad.pinchZoomMode NAVIGATIONMODE`.
 
 Caret and media modes can be customized by `set navigationModeAction` command.
+
+### Modifier layers:
+
+Modifier layers are meant to allow easy overriding of modifier scancodes. If you bind an action there, it will be activated from the base layer when the corresponding modifier is pressed. E.g., allowing different scancode for shifted key compared to non-shifted keys. As such, they are not really layers.
+
+These layers work through an elaborate setup of positive and negative sticky layer masks.
 

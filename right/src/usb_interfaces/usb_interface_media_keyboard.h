@@ -15,10 +15,10 @@
     #define USB_MEDIA_KEYBOARD_ENDPOINT_INDEX 4
     #define USB_MEDIA_KEYBOARD_ENDPOINT_COUNT 1
 
-    #define USB_MEDIA_KEYBOARD_INTERRUPT_IN_PACKET_SIZE 8
+    #define USB_MEDIA_KEYBOARD_INTERRUPT_IN_PACKET_SIZE (USB_MEDIA_KEYBOARD_REPORT_LENGTH)
     #define USB_MEDIA_KEYBOARD_INTERRUPT_IN_INTERVAL 1
 
-    #define USB_MEDIA_KEYBOARD_REPORT_LENGTH 8
+    #define USB_MEDIA_KEYBOARD_REPORT_LENGTH (sizeof(usb_media_keyboard_report_t))
 
 // Typedefs:
 
@@ -40,7 +40,7 @@
     usb_status_t UsbMediaKeyboardCheckIdleElapsed();
     usb_status_t UsbMediaKeyboardCheckReportReady();
 
-    bool UsbMediaKeyboard_AddScancode(usb_media_keyboard_report_t* report, uint8_t scancode);
+    bool UsbMediaKeyboard_AddScancode(usb_media_keyboard_report_t* report, uint16_t scancode);
     void UsbMediaKeyboard_MergeReports(const usb_media_keyboard_report_t* sourceReport, usb_media_keyboard_report_t* targetReport);
 
 #endif

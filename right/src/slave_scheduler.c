@@ -1,4 +1,6 @@
+#include "fsl_common.h"
 #include "fsl_i2c.h"
+#include "fsl_clock.h"
 #include "slave_scheduler.h"
 #include "slot.h"
 #include "slave_drivers/is31fl3xxx_driver.h"
@@ -9,6 +11,8 @@
 #include "i2c_addresses.h"
 #include "config.h"
 #include "i2c_error_logger.h"
+#include "macros.h"
+#include "debug.h"
 
 uint32_t I2cSlaveScheduler_Counter;
 
@@ -81,7 +85,7 @@ static void slaveSchedulerCallback(I2C_Type *base, i2c_master_handle_t *handle, 
             bool wasPreviousSlaveConnected = previousSlave->isConnected;
             previousSlave->isConnected = previousStatus == kStatus_Success;
             if (wasPreviousSlaveConnected && !previousSlave->isConnected && previousSlave->disconnect) {
-                previousSlave->disconnect(previousSlaveId);
+                previousSlave->disconnect(previousSlave->perDriverId);
             }
 
             isFirstCycle = false;
@@ -91,17 +95,21 @@ static void slaveSchedulerCallback(I2C_Type *base, i2c_master_handle_t *handle, 
             currentSlave->init(currentSlave->perDriverId);
         }
 
-        status_t currentStatus = currentSlave->update(currentSlave->perDriverId);
+        slave_result_t res = currentSlave->update(currentSlave->perDriverId);
+        status_t currentStatus = res.status;
         if (IS_STATUS_I2C_ERROR(currentStatus)) {
             LogI2cError(currentSlaveId, currentStatus);
         }
+
         isTransferScheduled = currentStatus != kStatus_Uhk_IdleSlave && currentStatus != kStatus_Uhk_IdleCycle;
 
-        if (currentStatus != kStatus_Uhk_IdleCycle) {
+        if (!res.hold || !currentSlave->isConnected) {
             previousSlaveId = currentSlaveId++;
             if (currentSlaveId >= SLAVE_COUNT) {
                 currentSlaveId = 0;
             }
+        } else {
+            previousSlaveId = currentSlaveId;
         }
 
     } while (!isTransferScheduled);
@@ -114,6 +122,9 @@ void InitSlaveScheduler(void)
 
     for (uint8_t i=0; i<SLAVE_COUNT; i++) {
         uhk_slave_t *currentSlave = Slaves + i;
+        if (currentSlave->isConnected && currentSlave->disconnect) {
+            currentSlave->disconnect(currentSlave->perDriverId);
+        }
         currentSlave->isConnected = false;
     }
 

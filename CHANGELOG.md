@@ -5,6 +5,67 @@ All notable changes to this project will be documented in this file.
 The format is loosely based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to the [UHK Versioning](VERSIONING.md) conventions.
 
+## [9.1.4] - 2022-11-14
+
+Device Protocol: 4.8.0 | Module Protocol: 4.2.0 | User Config: 5.1.0 | Hardware Config: 1.0.0 | Smart Macros: 1.0.**3**
+
+- Fix `goTo` and related smart macro command bug. `SMARTMACROS:PATCH`
+- Fix scheduling error in `call` smart macro command. `SMARTMACROS:PATCH`
+- Disable USB gamepad interface as it interferes with gamepads. Will re-enable it later after exposing its feature set via Agent.
+
+## [9.1.3] - 2022-11-10
+
+Device Protocol: 4.8.0 | Module Protocol: 4.2.0 | User Config: 5.1.0 | Hardware Config: 1.0.0 | Smart Macros: 1.0.**2**
+
+- Fix memory corruption in macro engine core which occasionally caused undefined behavior. `SMARTMACROS:PATCH`
+
+## [9.1.2] - 2022-10-30
+
+Device Protocol: 4.8.0 | Module Protocol: 4.2.0 | User Config: 5.1.0 | Hardware Config: 1.0.0 | Smart Macros: 1.0.**1**
+
+- Fix interactive smart macro documentation to properly generate mouseKeys.{move,scroll}.initialAcceleration `SMARTMACROS:PATCH`
+- Add USB gamepad interface, which cannot be used yet from Agent.
+
+## [9.1.1] - 2022-10-21
+
+Device Protocol: 4.8.0 | Module Protocol: 4.2.0 | User Config: 5.1.0 | Hardware Config: 1.0.0 | Smart Macros: 1.0.0
+
+- Make the touchpad module not blink in Agent, and make its pointer movement much smoother.
+
+## [9.1.0] - 2022-10-04
+
+Device Protocol: 4.8.0 | Module Protocol: 4.2.0 | User Config: 5.**1**.0 | Hardware Config: 1.0.0 | Smart Macros: 1.0.0
+
+- Fix layer activation/toggle priority. (Since v9.0.0, any layer activation, according to the base layer, released the toggled layer instead of triggering the relevant action on non-base layers.)
+- Add the new layers to the list of secondary role layers. `USERCONFIG:MINOR`
+- Hide the widgets of the smart macro documentation when no macro command is focused.
+
+## [9.0.1] - 2022-09-10
+
+Device Protocol: 4.8.0 | Module Protocol: 4.2.0 | User Config: 5.0.0 | Hardware Config: 1.0.0 | Smart Macros: 1.0.0
+
+- Fix 16-bit scancodes, such as "start calculator".
+- Make the smart macro documentation of the repo self-contained, and add docDir property to /doc/package.json, allowing Agent to fetch the online documentation of any firmware release.
+
+## [9.0.0] - 2022-09-05
+
+Device Protocol: 4.**8.0** | Module Protocol: 4.**2.0** | User Config: **5.0.0** | Hardware Config: 1.0.0 | Smart Macros: 1.0.0
+
+The features marked with (*) can only be used with Agent 2.0.0 to be released soon, or above.
+
+- Add smart macro engine. (*) `USERCONFIG:MINOR`
+- Extend the original 4 layers with 4 regular layers (Fn2, Fn3, Fn4, Fn5) and 4 modifier layers (Shift, Ctrl, Alt, Super). (*) `USERCONFIG:MAJOR`
+- Fix USB descriptors which caused high CPU load on Macintosh computers.
+- Implement touchpad pinch-to-zoom, two-finger scrolling, and doubletap-to-drag.
+- Allow rebinding touchpad tap action.
+- Fix occasional trackpoint pointer jumps.
+- Reload keymap when a module is swapped.
+- Properly disconnect slaves on I2C reinitialization.
+- Implement N-key rollover.
+- Make accelerate and decelerate actions work with modules.
+- Add resetTrackpoint macro command. `MODULEPROTOCOL:MINOR`
+- Expose device and module git and version properties. `DEVICEPROTOCOL:MINOR` `MODULEPROTOCOL:MINOR`
+
 ## [8.10.12] - 2021-10-27
 
 Device Protocol: 4.7.1 | Module Protocol: 4.1.0 | User Config: 4.2.0 | Hardware Config: 1.0.0

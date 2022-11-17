@@ -1,6 +1,6 @@
 # Extended macro engine
 
-Extended macro engine is developed on kareltucek/firmware and occasionally merged into the stock firmware. However, just some of its features are available in stock firmware (mostly just `printStatus` and `set` commands). Full engine can be built using either `make-release.js --extendedMacros` or `make CUSTOM_CFLAGS=-DEXTENDED_MACROS`, or obtained at https://github.com/kareltucek/firmware/releases/.
+Extended macro engine is developed on kareltucek/firmware and occasionally merged into the stock firmware. However, just some of its features are available in stock firmware by default (mostly just `printStatus` and `set` commands). Full engine can be built using either `make-release.js --extendedMacros` or `make CUSTOM_CFLAGS=-DEXTENDED_MACROS` or enabled by `set macroEngine.extendedCommands 1` or obtained at https://github.com/kareltucek/firmware/releases/. Needless to say, extended commands are not officially supported. These commands are also not thoroughly tested, and are more likely to be removed or reshaped in the future.
 
 The extended engine implements:
 - macro commands for most features of the keyboard
@@ -25,9 +25,12 @@ Some of the usecases which can be achieved via these commands are:
 
    Agent is the UHK configuration tool. You can get it at https://github.com/UltimateHackingKeyboard/agent/releases . When you start the Agent up, go to 'firmware' and 'Choose firmware file and flash it'.
 
-2) Create a macro with some command action. For instance:
 
-Use either native command action (if you have an Agent which supports it):
+2) If you are using stock firmware and want to use full power of the engine, you need to create a macro named `$onInit` with following content. Skip this step if you are using firmware from kareltucek/firmware repository. (This is a macro event, which will be automatically executed whenever the keyboard is powercycled.):
+
+    set macroEngine.extendedCommands 1
+
+3) Create some macro with some command action. (And bind it in your keymap.) For instance:
 
     holdKey leftShift
     ifDoubletap tapKey capsLock
@@ -37,7 +40,7 @@ Or use the text action and prefix the commands with $:
     $holdKey leftShift
     $ifDoubletap tapKey capsLock
 
-3) Understand how this guide and the reference manual work:
+4) Understand how this guide and the reference manual work:
 
     - Use Ctrl+F (or equivalent) a lot - here, and in the [reference manual](reference-manual.md).
     - Go through the sections of the reference manual - just reading the top section lines will give you some idea about available types of commands.
@@ -48,15 +51,18 @@ Or use the text action and prefix the commands with $:
         - Provided value bounds are informational only - they denote values that seem to make sense. Sometimes default values are marked.
     - If you are still not sure about some feature or syntax, do not hesitate to ask.
 
-4) If `ERR` appears up on the display, you can retrieve description by using `printStatus` over a focused text editor. Or, using above point, just search the [reference manual](reference-manual.md) for `ERR`.
+5) If `ERR` appears up on the display, you can retrieve description by using `printStatus` over a focused text editor. Or, using above point, just search the [reference manual](reference-manual.md) for `ERR`.
 
-5) If you encounter a bug, let me know. There are lots of features and quite few users around this codebase - if you do not report problems you find, chances are that no one else will (since most likely no one else has noticed).
+6) If you encounter a bug, let me know. There are lots of features and quite few users around this codebase - if you do not report problems you find, chances are that no one else will (since most likely no one else has noticed).
 
 ## Examples
 
 Every nonempty line is considered as one command. Empty line, or commented line too. Empty lines are skipped. Exception is empty command action, which counts for one command.
 
 Configuration of the keyboard can be modified globally or per-keymap by using [macro events](reference-manual.md). For instance, macro named `$onInit` may contain following speed configuration:
+
+    //enable extended commands in case you are using stock firmware.
+    set macroEngine.extendedCommands 1
 
     //accel driver
     set module.trackball.baseSpeed 0.5
@@ -163,12 +169,16 @@ Postponed secondary role switch - `resolveSeccondary` is a bit more flexible and
     break
     holdLayer mod
 
-Mapping custom shortcuts may be done using `ifShortcut` command. The macro needs to be placed on the first key of the shortcut, and refers to other keys by their hardware ids obtained by `resolveNextKeyId` command (i.e., activating the command and pressing the key while having a text editor focused). The (`ifShortcut`) command will postpone other actions until sufficient number of keys is pressed. If the pressed keys correspond to the arguments, the keys are consumed and the rest of the command performed. Otherwise, postponed keypresses are either used up by the rest of the macro or replayed back. The `final` modifier breaks the command after the "modified" `tapKey` command finishes.
+You can use `ifShortcut` when you want to map an action to a combination of keys. E.g, if I want z+x to produce Control+x, z+c to produce Control+c, z+v to produce Control+v, I will map following macro on the z key:
 
-    ifShortcut 90 final tapKey v
-    ifShortcut 88 final tapKey x
-    ifShortcut 70 71 final tapKey CG-a
-    tapKey c
+```
+    ifShortcut 88 final tapKey C-x
+    ifShortcut 89 final tapKey C-c
+    ifShortcut 90 final tapKey C-v
+    holdKey z
+```
+
+An `ifShortcut` macro needs to be placed on the first key of the shortcut, and refers to other keys by Their hardware ids obtained by `resolveNextKeyId` command (i.e., activating the command and pressing the key while having a text editor focused). The (`ifShortcut`) command will postpone other actions until sufficient number of keys is pressed. If the pressed keys correspond to the arguments, the keys are consumed and the rest of the command performed. Otherwise, postponed keypresses are either used up by the rest of the macro or replayed back. The `final` modifier breaks the command after the "modified" `tapKey` command finishes.
 
 Similar command can be used to implement "loose gestures" - i.e., shortcuts where the second keypress can follow without continuity of press of the first key. It suffices to replace the `ifShortcut` by `ifGesture`. Vim-like gt and gT (g+shift+t) tab switching:
 
@@ -182,6 +192,8 @@ Complex key sequences can be achieved using `tapKeySeq`. For instance, following
 
     ifGesture 80 73 final tapKeySeq CS-u 1 f 6 0 5 space
     ifGesture 80 21 final tapKeySeq CS-u 1 f 9 3 7 space
+
+## Advanced commands:
 
 You can simplify writing macros by using `#` and `@` characters. The first resolves a number as an index of a register. The second interprets the number as a relative action index. For instance the following macro will write out five "a"s with 50 ms delays
 
@@ -205,6 +217,68 @@ You can use `goTo @0` as active wait loop. Consider following example. If briefl
     ifPending 1 goTo @0
     ifKeyActive #0 goTo @0
     goTo begin
+
+Simple active wait loop example, to simulate qmk "caps words" - a feature which acts as a caps lock, but automatically turns off on space character:
+
+On activation key:
+
+    pressKey LS-
+    setReg 5 1
+    ifRegEq 5 1 goTo @0
+    #at the end of macro, the shift gets released automatically
+
+on space:
+
+    holdKey space
+    setReg 5 0
+
+## Per-key LEDs fun:
+
+Colour picker for constant colours. Bound on fn+r, fn+r+r turns colour to red, fn+r+v to violet, etc..
+
+    ifGesture transitive 75 final set backlight.constantRgb.rgb 255 32 0  // r - red
+    ifGesture transitive 84 final set backlight.constantRgb.rgb 192 255 0  // g - green
+    ifGesture transitive 91 final set backlight.constantRgb.rgb 128 192 255 // b - blue
+    ifGesture transitive 14 final set backlight.constantRgb.rgb 255 192 0 // y - yellow
+    ifGesture transitive 90 final set backlight.constantRgb.rgb 192 64 255 // v - violet
+    ifGesture transitive 9 final set backlight.constantRgb.rgb 255 128 0 // o - orange
+    ifGesture transitive 73 final set backlight.constantRgb.rgb 192 32 0 // w - wine
+    ifGesture transitive 21 final set backlight.constantRgb.rgb 128 48 0 // b - brown
+    ifGesture transitive 22 final set backlight.constantRgb.rgb 255 192 32 // n - warm white, as "normal"
+    ifGesture transitive 82 final set backlight.strategy functional // f to functional backlight
+    ifGesture transitive 72 final set leds.enabled 0 // q - to turn off
+    ifGesture transitive 10 final set leds.enabled 1 // p - to turn back on
+
+To see all possible UHK hues (maximum saturation), hold a key with the following macro:
+
+    autoRepeat progressHue
+
+In order to make UHK slowly rotate through all rainbow colors all the time, you can use the following macro:
+
+    progressHue
+    delayUntil 1000
+    goTo 0
+
+In order to prevent it from running multiple times:
+
+    # prevent the macro from running multiple times via (randomly picked) register 22
+    setReg 22 1
+    delayUntil 2000
+    setReg 22 0
+    beginLoop:
+    ifRegEq 22 1 break
+    # the important part begins here
+    progressHue
+    delayUntil 1000
+    goTo beginLoop
+
+You can also start this from `$onInit` by `fork rotateHues` (given you have the macro named `rotateHues`). Or add following lines to the colour picker:
+
+    # put this at the beginning of the picker, to stop rotateHues when another choice is made.
+    setReg 22 1
+    # start the `rotateHues` macro on 'c' - as "changing"
+    ifGesture transitive 89 final fork rotateHues
+
 
 # Further reading
 

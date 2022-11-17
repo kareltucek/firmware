@@ -5,7 +5,8 @@
 
     #include "fsl_common.h"
     #include "crc16.h"
-    #include "versions.h"
+#include "slave_scheduler.h"
+    #include "versioning.h"
     #include "slot.h"
     #include "usb_interfaces/usb_interface_mouse.h"
 
@@ -75,6 +76,7 @@
         UhkModulePhase_SetTestLed,
         UhkModulePhase_SetLedPwmBrightness,
         UhkModulePhase_JumpToBootloader,
+        UhkModulePhase_ResetTrackpoint,
 
     } uhk_module_phase_t;
 
@@ -115,7 +117,9 @@
     uint8_t UhkModuleSlaveDriver_DriverIdToSlotId(uint8_t uhkModuleDriverId);
 
     void UhkModuleSlaveDriver_Init(uint8_t uhkModuleDriverId);
-    status_t UhkModuleSlaveDriver_Update(uint8_t uhkModuleDriverId);
+    slave_result_t UhkModuleSlaveDriver_Update(uint8_t uhkModuleDriverId);
     void UhkModuleSlaveDriver_Disconnect(uint8_t uhkModuleDriverId);
+
+    void UhkModuleSlaveDriver_ResetTrackpoint();
 
 #endif

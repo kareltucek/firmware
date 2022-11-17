@@ -21,6 +21,7 @@
 #include "mouse_controller.h"
 #include "debug.h"
 #include "macro_set_command.h"
+#include "slave_drivers/uhk_module_driver.h"
 #include <stddef.h>
 #include <string.h>
 
@@ -41,6 +42,11 @@ bool Macros_WakeMeOnKeystateChange = false;
 
 bool Macros_ParserError = false;
 
+#ifdef EXTENDED_MACROS
+bool Macros_ExtendedCommands = true;
+#else
+bool Macros_ExtendedCommands = false;
+#endif
 
 macro_scheduler_t Macros_Scheduler = Scheduler_Blocking;
 uint8_t Macros_MaxBatchSize = 20;
@@ -227,6 +233,7 @@ static macro_result_t processDelay(uint32_t time)
     if (s->as.actionActive) {
         if (Timer_GetElapsedTime(&s->as.delayData.start) >= time) {
             s->as.actionActive = false;
+            s->as.delayData.start = 0;
             return MacroResult_Finished;
         }
         sleepTillTime(s->as.delayData.start + time);
@@ -840,8 +847,8 @@ static void describeSchedulerState()
     Macros_SetStatusString("s:", NULL);
     Macros_SetStatusNum(scheduler.currentSlotIdx);
     Macros_SetStatusNum(scheduler.previousSlotIdx);
-    Macros_SetStatusNum(scheduler.activeSlotCount);
     Macros_SetStatusNum(scheduler.lastQueuedSlot);
+    Macros_SetStatusNum(scheduler.activeSlotCount);
 
     Macros_SetStatusString(":", NULL);
     uint8_t slot = scheduler.currentSlotIdx;
@@ -1486,13 +1493,13 @@ static macro_result_t goToAddress(uint8_t address)
     uint8_t oldAddress = s->ms.commandAddress;
 
     //if we jump back, we have to reset and go from beginning
-    if(address < s->ms.commandAddress) {
+    if (address < s->ms.commandAddress) {
         resetToAddressZero(s->ms.currentMacroIndex);
     }
 
     //if we are in the middle of multicommand action, parse till the end
     if(s->ms.commandAddress < address && s->ms.commandAddress != 0) {
-        while(loadNextCommand()) ;
+        while (s->ms.commandAddress < address && loadNextCommand());
     }
 
     //skip across actions without having to read entire action
@@ -1642,6 +1649,11 @@ static macro_result_t processPlayMacroCommand(const char* arg, const char *argEn
 
 static macro_result_t processWriteCommand(const char* arg, const char *argEnd)
 {
+    // todo: clean this up when refactoring write tokenization
+    while (argEnd > arg && (argEnd[-1] == '\n' || argEnd[-1] == '\r')) {
+        argEnd--;
+    }
+
     return dispatchText(arg, argEnd - arg);
 }
 
@@ -1676,7 +1688,13 @@ static macro_result_t processStatsRuntimeCommand()
 
 static macro_result_t processNoOpCommand()
 {
-    return MacroResult_Blocking;
+    if (!s->as.actionActive) {
+        s->as.actionActive = true;
+        return MacroResult_Blocking;
+    } else {
+        s->as.actionActive = false;
+        return MacroResult_Finished;
+    }
 }
 
 #define RESOLVESEC_RESULT_DONTKNOWYET 0
@@ -2167,6 +2185,12 @@ static macro_result_t processRepeatForCommand(const char* arg1, const char* argE
     return MacroResult_Finished;
 }
 
+static macro_result_t processResetTrackpointCommand()
+{
+    UhkModuleSlaveDriver_ResetTrackpoint();
+    return MacroResult_Finished;
+}
+
 static macro_result_t processExecCommand(const char* arg1, const char* cmdEnd)
 {
     uint8_t macroIndex = FindMacroIndexByName(arg1, TokEnd(arg1, cmdEnd), true);
@@ -2213,13 +2237,13 @@ static macro_result_t processProgressHueCommand()
         phase++;
     }
 
-    LedMap_BacklightStrategy = BacklightStrategy_ConstantRGB;
+    SetLedBacklightStrategy(BacklightStrategy_ConstantRGB);
     UpdateLayerLeds();
     return MacroResult_Finished;
 #undef C
 }
 
-static ATTR_UNUSED macro_result_t processCommand(const char* cmd, const char* cmdEnd)
+static macro_result_t processCommand(const char* cmd, const char* cmdEnd)
 {
     if (*cmd == '$') {
         cmd++;
@@ -2675,6 +2699,9 @@ static ATTR_UNUSED macro_result_t processCommand(const char* cmd, const char* cm
             else if (TokenMatches(cmd, cmdEnd, "repeatFor")) {
                 return processRepeatForCommand(arg1, cmdEnd);
             }
+            else if (TokenMatches(cmd, cmdEnd, "resetTrackpoint")) {
+                return processResetTrackpointCommand();
+            }
             else {
                 goto failed;
             }
@@ -2809,7 +2836,7 @@ static ATTR_UNUSED macro_result_t processCommand(const char* cmd, const char* cm
     return MacroResult_Finished;
 }
 
-static ATTR_UNUSED macro_result_t processStockCommandAction(const char* cmd, const char* cmdEnd)
+static macro_result_t processStockCommandAction(const char* cmd, const char* cmdEnd)
 {
     if (*cmd == '$') {
         cmd++;
@@ -2829,6 +2856,14 @@ static ATTR_UNUSED macro_result_t processStockCommandAction(const char* cmd, con
         case 'p':
             if (TokenMatches(cmd, cmdEnd, "printStatus")) {
                 return processPrintStatusCommand();
+            }
+            else {
+                goto failed;
+            }
+            break;
+        case 'r':
+            if (TokenMatches(cmd, cmdEnd, "resetTrackpoint")) {
+                return processResetTrackpointCommand();
             }
             else {
                 goto failed;
@@ -2867,11 +2902,12 @@ static macro_result_t processCommandAction(void)
         return MacroResult_Finished;
     }
 
-#ifdef EXTENDED_MACROS
-    macro_result_t actionInProgress = processCommand(cmd, cmdEnd);
-#else
-    macro_result_t actionInProgress = processStockCommandAction(cmd, cmdEnd);
-#endif
+    macro_result_t actionInProgress;
+    if (Macros_ExtendedCommands) {
+        actionInProgress = processCommand(cmd, cmdEnd);
+    } else {
+        actionInProgress = processStockCommandAction(cmd, cmdEnd);
+    }
 
     s->as.currentConditionPassed = actionInProgress & MacroResult_InProgressFlag;
     return actionInProgress;
@@ -2978,6 +3014,8 @@ static bool loadNextCommand()
         return false;
     }
 
+    memset(&s->as, 0, sizeof s->as);
+
     const char* actionEnd = s->ms.currentMacroAction.cmd.text + s->ms.currentMacroAction.cmd.textLen;
     const char* nextCommand = s->ms.currentMacroAction.cmd.text + s->ms.commandEnd;
 
@@ -3019,6 +3057,7 @@ static macro_result_t execMacro(uint8_t index)
 
 static macro_result_t callMacro(uint8_t macroIndex)
 {
+    unscheduleCurrentSlot();
     s->ms.macroSleeping = true;
     s->ms.wakeMeOnKeystateChange = false;
     s->ms.wakeMeOnTime = false;
@@ -3210,32 +3249,43 @@ static void wakeMacroInSlot(uint8_t slotIdx)
 
 static void scheduleSlot(uint8_t slotIdx)
 {
-    if(scheduler.activeSlotCount == 0) {
-        MacroState[slotIdx].ms.nextSlot = slotIdx;
-        scheduler.previousSlotIdx = slotIdx;
-        scheduler.currentSlotIdx = slotIdx;
-        scheduler.lastQueuedSlot = slotIdx;
-        scheduler.activeSlotCount++;
-        scheduler.remainingCount++;
-    } else {
-        bool shouldInheritPrevious = scheduler.lastQueuedSlot == scheduler.previousSlotIdx;
-        MacroState[slotIdx].ms.nextSlot = MacroState[scheduler.lastQueuedSlot].ms.nextSlot;
-        MacroState[scheduler.lastQueuedSlot].ms.nextSlot = slotIdx;
-        scheduler.lastQueuedSlot = slotIdx;
-        scheduler.activeSlotCount++;
-        scheduler.remainingCount++;
-        if(shouldInheritPrevious) {
+    if (!MacroState[slotIdx].ms.macroScheduled) {
+        if (scheduler.activeSlotCount == 0) {
+            MacroState[slotIdx].ms.nextSlot = slotIdx;
+            MacroState[slotIdx].ms.macroScheduled = true;
             scheduler.previousSlotIdx = slotIdx;
+            scheduler.currentSlotIdx = slotIdx;
+            scheduler.lastQueuedSlot = slotIdx;
+            scheduler.activeSlotCount++;
+            scheduler.remainingCount++;
+        } else {
+            bool shouldInheritPrevious = scheduler.lastQueuedSlot == scheduler.previousSlotIdx;
+            MacroState[slotIdx].ms.nextSlot = MacroState[scheduler.lastQueuedSlot].ms.nextSlot;
+            MacroState[scheduler.lastQueuedSlot].ms.nextSlot = slotIdx;
+            MacroState[slotIdx].ms.macroScheduled = true;
+            scheduler.lastQueuedSlot = slotIdx;
+            scheduler.activeSlotCount++;
+            scheduler.remainingCount++;
+            if(shouldInheritPrevious) {
+                scheduler.previousSlotIdx = slotIdx;
+            }
         }
+    } else {
+        ERR("Scheduling an already scheduled slot attempted!");
     }
 }
 
 static void unscheduleCurrentSlot()
 {
-    MacroState[scheduler.previousSlotIdx].ms.nextSlot = MacroState[scheduler.currentSlotIdx].ms.nextSlot;
-    scheduler.lastQueuedSlot = scheduler.lastQueuedSlot == scheduler.currentSlotIdx ? scheduler.previousSlotIdx : scheduler.lastQueuedSlot;
-    scheduler.currentSlotIdx = scheduler.previousSlotIdx;
-    scheduler.activeSlotCount--;
+    if (MacroState[scheduler.currentSlotIdx].ms.macroScheduled) {
+        MacroState[scheduler.previousSlotIdx].ms.nextSlot = MacroState[scheduler.currentSlotIdx].ms.nextSlot;
+        MacroState[scheduler.currentSlotIdx].ms.macroScheduled = false;
+        scheduler.lastQueuedSlot = scheduler.lastQueuedSlot == scheduler.currentSlotIdx ? scheduler.previousSlotIdx : scheduler.lastQueuedSlot;
+        scheduler.currentSlotIdx = scheduler.previousSlotIdx;
+        scheduler.activeSlotCount--;
+    } else {
+        ERR("Unsechuling non-scheduled slot attempted!");
+    }
 }
 
 static void getNextScheduledSlot()
