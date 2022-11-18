@@ -16,6 +16,40 @@ If you want to give it a try, you should continue at.
 
 # Other notes
 
+## Migration
+
+Since 9.0.0, there are some groundbreaking changes:
+
+- This branch has been fully merged into uhk/master, and further improvements are going to be merged straight into uhk/master. Not all commands are enabled by default though - in order to enable full feature set, you need to allow it using a `set macroEngine.extendedCommands 1`.
+
+- There is now a dedicated command macro action.
+
+- Multiline scripts are now supported.
+
+From now on, using official firmware is therefore recommended. I will still release a new build time to time, which will include backward-compatibility tweaks, but in order to stay up to date, you should probably migrate to the new format.
+
+In order to migrate to official build:
+
+- Create a new macro named `$onInit` containing `set macroEngine.extendedCommands 1`. This will allow full feature set when your keyboard is booted up.
+
+- You need export your UserConfig.json, transform all relevant text actions to command actions and import your UserConfig.json back. You can use IzK666's conversion tool which is available at [https://izk666.github.io/UHK-Viewer-v5/](https://izk666.github.io/UHK-Viewer-v5/), or use any automation tool of your choice (vim macro, sed, ...) to transform the file into the required format.
+
+   From 
+
+   ```
+   "macroActionType": "text",
+   "text": "printStatus"
+   ```
+
+   To
+
+   ```
+   "macroActionType": "command",
+   "command": "printStatus"
+   ```
+
+- Some macro commands have been renamed, deprecated or even removed during past two years. You may need to look these up in the docs and transform to the new form. This especially applies to commands of form `setSomething`, which have become `set something` instead.
+
 ## Contributing
 
 If you wish some functionality, feel free to fire tickets with feature requests. If you wish something already present on the tracker (e.g., in 'idea' tickets), say so in comments. (Feel totally free to harass me over desired functionality :-).) If you feel brave, fork the repo, implement the desired functionality and post a PR.
