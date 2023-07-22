@@ -31,6 +31,11 @@ usb_status_t UsbGenericHidCallback(class_handle_t handle, uint32_t event, void *
 {
     usb_status_t error = kStatus_USB_InvalidRequest;
 
+
+    if (event != 1 && event != 2) {
+        Macros_ReportErrorNum("G", event);
+    }
+
     switch (event) {
         case ((uint32_t)-kUSB_DeviceEventSetConfiguration):
             if (*(uint8_t*)param > 0) {

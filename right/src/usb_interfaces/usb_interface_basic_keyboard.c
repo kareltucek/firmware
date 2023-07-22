@@ -1,7 +1,9 @@
 #include "led_display.h"
+#include "macros.h"
 #include "usb_composite_device.h"
 #include "usb_report_updater.h"
 
+bool UsbBasicKeyboard_ProtocolInitialized = false;
 static usb_basic_keyboard_report_t usbBasicKeyboardReports[2];
 static uint8_t usbBasicKeyboardOutBuffer[USB_BASIC_KEYBOARD_OUT_REPORT_LENGTH];
 usb_hid_protocol_t usbBasicKeyboardProtocol;
@@ -42,6 +44,8 @@ usb_status_t UsbBasicKeyboardAction(void)
 
         // latch the active protocol to avoid ISR <-> Thread race
         usbBasicKeyboardProtocol = ((usb_device_hid_struct_t*)UsbCompositeDevice.basicKeyboardHandle)->protocol;
+        UsbBasicKeyboard_ProtocolInitialized = true;
+        Macros_ReportError("PI", NULL, NULL);
         return usb_status;
     }
 
@@ -74,6 +78,7 @@ usb_status_t UsbBasicKeyboardCallback(class_handle_t handle, uint32_t event, voi
 {
     usb_device_hid_struct_t *hidHandle = (usb_device_hid_struct_t *)handle;
     usb_status_t error = kStatus_USB_InvalidRequest;
+    Macros_ReportErrorNum("B", event);
 
     switch (event) {
         case ((uint32_t)-kUSB_DeviceEventSetConfiguration):

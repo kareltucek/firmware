@@ -402,6 +402,7 @@ static void updateActiveUsbReports(void)
     OutputModifiers = 0;
     SuppressMods = false;
 
+
     if (MacroPlaying) {
         if (Macros_WakeMeOnTime < CurrentTime) {
             Macros_WakedBecauseOfTime = true;
@@ -563,6 +564,7 @@ void UpdateUsbReports(void)
             UsbBasicKeyboardResetActiveReport();
 		} else {
             UsbReportUpdateSemaphore |= 1 << USB_BASIC_KEYBOARD_INTERFACE_INDEX;
+            WATCH_CALL_COUNT(0)
             usb_status_t status = UsbBasicKeyboardAction();
             //The semaphore has to be set before the call. Assume what happens if a bus reset happens asynchronously here. (Deadlock.)
             if (status != kStatus_USB_Success) {

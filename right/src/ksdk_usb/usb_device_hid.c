@@ -28,6 +28,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "macros.h"
 #include "usb_device_config.h"
 #include "usb.h"
 #include "usb_device.h"
@@ -333,6 +334,7 @@ usb_status_t USB_DeviceHidEvent(void *handle, uint32_t event, void *param)
             hidHandle->interruptInPipeBusy = 0U;
             hidHandle->interruptOutPipeBusy = 0U;
             UsbReportUpdateSemaphore = 0;
+            Macros_ReportError("RST", NULL, NULL);
             break;
         case kUSB_DeviceClassEventSetConfiguration:
             /* Get the new configuration. */
