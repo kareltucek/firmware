@@ -49,6 +49,9 @@
     extern mouse_kinetic_state_t MouseMoveState;
     extern mouse_kinetic_state_t MouseScrollState;
 
+    extern uint8_t ActiveMouseStateCount;
+    extern uint8_t ToggledMouseStateCount;
+
     extern uint8_t ActiveMouseStates[ACTIVE_MOUSE_STATES_COUNT];
     extern uint8_t ToggledMouseStates[ACTIVE_MOUSE_STATES_COUNT];
 

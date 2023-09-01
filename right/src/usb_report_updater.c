@@ -275,6 +275,7 @@ void ApplyKeyAction(key_state_t *keyState, key_action_cached_t *cachedAction, ke
                 stickyModifiersNegative = cachedAction->modifierLayerMask;
                 MouseKeys_ActivateDirectionSigns(action->mouseAction);
             }
+            ActiveMouseStateCount++;
             ActiveMouseStates[action->mouseAction]++;
             break;
         case KeyActionType_SwitchLayer:
@@ -418,6 +419,7 @@ static void updateActiveUsbReports(void)
     }
 
     memcpy(ActiveMouseStates, ToggledMouseStates, ACTIVE_MOUSE_STATES_COUNT);
+    ActiveMouseStateCount = ToggledMouseStateCount;
 
     handleLayerChanges();
 

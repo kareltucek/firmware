@@ -1,4 +1,5 @@
 #include <math.h>
+#include <stdint.h>
 #include "key_action.h"
 #include "led_display.h"
 #include "layer.h"
@@ -27,6 +28,8 @@
 static uint32_t mouseUsbReportUpdateTime = 0;
 static uint32_t mouseElapsedTime;
 
+uint8_t ActiveMouseStateCount = 0;
+uint8_t ToggledMouseStateCount = 0;
 uint8_t ActiveMouseStates[ACTIVE_MOUSE_STATES_COUNT];
 uint8_t ToggledMouseStates[ACTIVE_MOUSE_STATES_COUNT];
 
@@ -220,7 +223,21 @@ static void processMouseKineticState(mouse_kinetic_state_t *kineticState)
 
 void MouseKeys_ProcessMouseActions()
 {
-    mouseElapsedTime = Timer_GetElapsedTimeAndSetCurrent(&mouseUsbReportUpdateTime);
+    if (ActiveMouseStateCount == 0) {
+        MouseMoveState.wasMoveAction = false;
+        MouseMoveState.prevMouseSpeed = 0.0f;
+        MouseScrollState.wasMoveAction = false;
+        MouseScrollState.prevMouseSpeed = 0.0f;
+        return;
+    }
+
+    if (!MouseMoveState.wasMoveAction && !MouseScrollState.wasMoveAction) {
+        mouseElapsedTime = CurrentTime - CurrentPostponedTime;
+        mouseUsbReportUpdateTime = CurrentTime;
+    } else {
+        mouseElapsedTime = CurrentTime - mouseUsbReportUpdateTime;
+        mouseUsbReportUpdateTime = CurrentTime;
+    }
 
     processMouseKineticState(&MouseMoveState);
     ActiveUsbMouseReport->x += MouseMoveState.xOut;
@@ -264,12 +281,16 @@ void ToggleMouseState(serialized_mouse_action_t action, bool activate)
 {
     if (activate) {
         ToggledMouseStates[action]++;
+        ToggledMouseStateCount++;
         // First macro action is ran during key update cycle, i.e., after ActiveMouseStates is copied from ToggledMouseStates.
         // Otherwise, direction sign will be resetted at the end of this cycle
         ActiveMouseStates[action]++;
+        ActiveMouseStateCount++;
         MouseKeys_ActivateDirectionSigns(action);
     }
     else{
-        ToggledMouseStates[action] -= ToggledMouseStates[action] > 0 ? 1 : 0;
+        uint8_t count = ToggledMouseStates[action] > 0 ? 1 : 0;
+        ToggledMouseStates[action] -= count;
+        ToggledMouseStateCount -= count;
     }
 }
