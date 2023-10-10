@@ -429,20 +429,22 @@ Furthermore, this configuration allows you to activate primary role by doubletap
 
 ### Advanced key binding
 
-In order to bind action to a complex shortcut, you can bind an `ifShortcut` macro onto the first key of such shortcut, as already shown above.
+In order to bind action to a complex shortcut, you can bind an `ifShortcut` macro onto the first key of such shortcut (as already shown above).
 
-In order to bind action to sequence of keys, you can use `ifGesture`.
-
-You can also use the `set keymapAction` to dynamically rebind keys in current keymap. Such bindings will last until keymap reload.
+In order to bind action to sequence of keys, you can use `ifGesture` (as already shown above).
+ 
+In order to rebind keys during runtime, you can also use the `set keymapAction` command. Such bindings will last until keymap reload.
 
 ```
-set keymapAction.base.15 keystroke left
-set keymapAction.base.16 keystroke down
-set keymapAction.base.17 keystroke right
-set keymapAction.base.8 keystroke up
+set keymapAction.base.15 keystroke left            // map base.j to left arrow    15 is numeric keyid of the j key
+set keymapAction.base.16 keystroke down            // map base.k to down arrow    16 is numeric keyid of the k key
+set keymapAction.base.17 keystroke right           // map base.l to right arrow   17 is numeric keyid of the l key
+set keymapAction.base.08 keystroke up              // map base.i to up arrow      08 is numeric keyid of the i key
 ```
 
-You may also use similar syntax to bind stuff into module navigation modes. E.g., you may repurpose your mini-trackball to do some vim magic (with `VimMTL` and `VimMTR` macros):
+You may also use similar syntax to bind stuff into module navigation modes. E.g., you may repurpose your mini-trackball to do some vim magic (with `VimMTL` and `VimMTR` macros). 
+
+I.e., if you run following macro and then roll your keycluster trackball to the right, then every roll event will activate the VimMTR macro.
 
 ```
 set navigationModeAction.media.left macro VimMTL
