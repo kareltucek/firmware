@@ -424,6 +424,19 @@ set keymapAction.base.192 macro TouchpadLeft
 set keymapAction.base.193 macro TouchpadRight
 ```
 
+### Macro recorder
+
+Runtime macro recorder allows capturing and replaying sequences of scancodes. Each such macro is identified by a number or a character (or `$thisKeyId` which resolves to the `KEYID` of the current key, therefore allowing generic key-associated macros). (Runtime macroes are unrelated to the macros that can be created via Agent.)
+
+In this setup, shift+key will start recording (indicated by the "adaptive mode" led), another shift+key will stop recording. Hiting the key alone will then replay the macro (e.g., a simple repetitive text edit). Alternatively, `$thisKeyId` can be used as an argument in order to assign every key to different slot.
+
+```
+ifShift recordMacro $thisKeyId
+ifNotShift playMacro $thisKeyId
+```
+
+See advanced examples for ways to bind macros in vim-style.
+
 ### Strings, variables and expressions
 
 Write command accepts (not exactly) bash-style interpolated strings. E.g.:
@@ -440,11 +453,17 @@ setVar foo 42
 write "\$foo value is $foo."
 ```
 
-You can use your variables, or configuration values in commands. E.g. to control led brightness, you may:
+You can use your variables, or configuration values in a commands. Expressions have to be enclosed in parentheses. E.g. to control led brightness, you may:
 
 ```
-ifShift set leds.brightness ($leds.brightness * 1.5 + 0.01)
-ifNotShift set leds.brightness ($leds.brightness / 1.5)
+ifShift autoRepeat set leds.brightness ($leds.brightness * 1.5 + 0.01)
+ifNotShift autoRepeat set leds.brightness ($leds.brightness / 1.5)
+```
+
+To toggle boolean config value, you may simply:
+
+```
+set leds.enabled (!$leds.enabled)
 ```
 
 Following operators are accepted:
@@ -508,34 +527,91 @@ or
 while (true) ifShift write "this *is* valid, but *please* do not do this."
 ```
 
-### Advanced commands:
+### Advanced examples:
 
-Example of using advanced features:
+#### Cycle through backlight colors.
 
-```
-// yes, this is a totally meaningless example
-ifCtrl goTo default    //goto can also go to labels, absolute adresses and relative adresses
-ifShift final tapKey a //final modifier ends the macro once the command has finished
-setVar foo 50            //store number 50 into variable foo
-setVar bar 5
-tapKey a
-delayUntil $foo
-repeatFor bar $currentAddress-2        //decrement $bar; if it is non-zero, return by two commands to the tapKey command
-noOp
-default: tapKey b      //<string>: denotes a label, which can be used as jump target
-```
+Following example allows you to cycle through different backlight colors.
 
-You can use `goTo $currentAddress` as an active wait loop. Consider following example. If briefly tapped, it produces `@@` (play last vim macro). If held, it prepends any other key tap with a `@` key. E.g., `thisMacro + p + p + p` produces `@p@p@p` (play vim macro in register p, thrice).
+In your `$onInit`:
 
 ```
-begin: postponeKeys ifNotPending 1 ifNotReleased goTo $currentAddress
-postponeKeys ifReleased final ifNotInterrupted ifNotPlaytime 300 tapKeySeq @ @
-postponeKeys ifPending 1 tapKey @
-postponeKeys setVar savedKey $queuedKeyId.0
-ifPending 1 goTo $currentAddress
-ifKeyActive $savedKey goTo $currentAddress
+setVar backroundColor 0
+```
+
+Then in the macro itself:
+
+```
+setVar backgroundColor (($backgroundColor + 1) % 3)        // let the backgroundColor var proceed over values 0, 1 and 2
+if ($backgroundColor == 0) {
+    set backlight.constantRgb.rgb 255 0 0
+}
+else if ($backgroundColor == 1) {
+    set backlight.constantRgb.rgb 0 255 0
+}
+else {
+    set backlight.constantRgb.rgb 0 0 255
+}
+```
+
+#### Macro repeat
+
+Lets reimplement vim-like macro repetition. E.g., record macro in slot Q Tap `fn+1 fn+3 fn+q`.
+
+In `$onInit`:
+
+```
+setVar macroRepeat 0
+```
+
+On keys fn.1 through fn.6:
+
+```
+setVar macroRepeat ($macroRepeat*10 + ($keyId - 65))
+```
+
+On keys fn.7 through fn.9:
+```
+setVar macroRepeat ($macroRepeat*10 + $keyId)
+```
+
+On fn.0:
+```
+setVar macroRepeat ($macroRepeat*10)
+```
+
+on fn.q (and possibly on all other fn layer characters?):
+
+```
+ifShift final recordMacro $thisKeyId  // start or end macro recording by fn+shift+q
+setVar i 0
+if ($macroRepeat == 0) setVar macroRepeat 1 //if number was not specified, repeat once
+while ($i < $macroRepeat) {
+    playMacro $thisKeyId
+    setVar i ($i+1)
+}
+```
+
+#### Vim @ prefix key
+
+If briefly tapped, this macro produces `@@` (play last vim macro). If held, it prepends any other key tap with a `@` key. E.g., `thisMacro + p + p + p` produces `@p@p@p` (play vim macro in register p, thrice).
+
+This example features active wait loops via `goTo $currentAddress` and some postponing queue magic.
+
+```
+begin: 
+    postponeKeys {                                                           // make sure that other key taps are just queued in postponing queue, but not executed
+        ifNotPending 1 ifNotReleased goTo $currentAddress                    // active wait for another key to get pressed
+        ifReleased final ifNotInterrupted ifNotPlaytime 300 tapKeySeq @ @    // if this is just a short tap, produce `@@` and finish
+        ifPending 1 tapKey @                                                 // there is a key activation in the queue, produce `@`
+        setVar savedKey $queuedKeyId.0
+    }
+    ifPending 1 goTo $currentAddress                        // active wait until the other key press gets executed
+    ifKeyActive $savedKey goTo $currentAddress              // active wait until the other key gets released
 goTo begin
 ```
+
+#### Caps words
 
 Simple active wait loop example, to simulate qmk "caps words" - a feature which acts as a caps lock, but automatically turns off on space character:
 
@@ -543,8 +619,8 @@ On activation key:
 
 ```
 pressKey LS-
-setVar capsActive 1
-if ($capsActive) goTo $currentAddress
+setVar capsActive 1                                // let the world know caps words is active
+if ($capsActive) goTo $currentAddress              // active wait until space sets the var to 0
 //at the end of macro, the shift gets released automatically
 ```
 
@@ -552,21 +628,12 @@ on space:
 
 ```
 holdKey space
-setVar capsActive 0
+setVar capsActive 0                                 // signal to the above macro that it should stop holding shift
 ```
 
-### Macro recorder
+#### Vim Q key
 
-Runtime macro recorder allows capturing and replaying sequences of scancodes. Each such macro is identified by a number or a character (or `$thisKeyId` which resolves to the `KEYID` of the current key, therefore allowing generic key-associated macros). (Runtime macroes are unrelated to the macros that can be created via Agent.)
-
-In this setup, shift+key will start recording (indicated by the "adaptive mode" led), another shift+key will stop recording. Hiting the key alone will then replay the macro (e.g., a simple repetitive text edit). Alternatively, `$thisKeyId` can be used as an argument in order to assign every key to different slot.
-
-```
-ifShift recordMacro A
-ifNotShift playMacro A
-```
-
-Above examples can be combined into more elaborate setups. Assume we bind following `perKeyMacro` on every key in your fn layer. Furthermore assume we bind following `recordKey` macro onto the `q` key (or `mod-q`). This gives us standard (although incomplete) vim behaviour. Tap `qa` (`mod-q + a`) to start recording a macro in slot "a". Tap `q` (`mod-q`) to end recording. Tap `fn-a` to replay the macro.
+Above examples can be combined into more elaborate setups. Assume we bind following `perKeyMacro` on every key in our fn layer. Furthermore assume we bind following `recordKey` macro onto the `q` key (or `mod-q`). This gives us standard (although incomplete) vim behaviour. Tap `qa` (`mod-q + a`) to start recording a macro in slot "a". Tap `q` (`mod-q`) to end recording. Tap `fn-a` to replay the macro.
 
 ```
 // perKeyMacro
@@ -577,11 +644,16 @@ playMacro $thisKeyId
 
 ```
 // recordKey
-ifRecording final stopRecording
-if $qActive final setVar qActive 0
-setVar qActive 1
-toggleLayer fn
-ifNotRecording ifNotPlaytime 5000 if ($qActive) goTo @0
+
+ifRecording final stopRecording      // stop recording if already recording
+if $qActive final setVar qActive 0   // terminate the "start recording" state if tapped second time
+
+ // signal to perKeyMacro that we want to start recording
+setVar qActive 1                                                
+
+// toggle fn layer and keep it active for 5 seconds or until some recordKey instance starts recording a macro
+toggleLayer fn                                                   
+ifNotRecording ifNotPlaytime 5000 if ($qActive) goTo @0          
 untoggleLayer
 setVar qActive 0
 ```
@@ -622,15 +694,14 @@ goTo 0
 Above macro will not terminate, not even when ran multiple times. In order to fix this issue, we can use some register signalling:
 
 ```
-// prevent the macro from running multiple times via (randomly picked) register 22
-setVar hueStopper 1
-delayUntil 2000
+setVar hueStopper 1       // signal other instances of this macro to terminate
+delayUntil 2000           // give other instances 2 seconds to terminate (via line 5)
 setVar hueStopper 0
-beginLoop:
-if $hueStopper break
-progressHue
-delayUntil 1000
-goTo beginLoop
+while (true) {
+    if $hueStopper exit   //if another macro signals us to terminate, do terminate
+    progressHue
+    delayUntil 1000
+}
 ```
 
 You can also start this from `$onInit` by `fork rotateHues` (given you have the macro named `rotateHues`). Or add following lines to the colour picker:
