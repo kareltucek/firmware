@@ -558,7 +558,7 @@ else {
 
 #### Macro repeat
 
-Lets reimplement vim-like macro repetition. E.g., record macro in slot Q Tap `fn+1 fn+3 fn+q`.
+Lets reimplement vim-like macro repetition. E.g., record macro on key q, then tap `fn+1 fn+3 fn+q`. Observe the macro being performed 13x.
 
 In `$onInit`:
 
@@ -585,13 +585,14 @@ setVar macroRepeat ($macroRepeat*10)
 on fn.q (and possibly on all other fn layer characters?):
 
 ```
-ifShift final recordMacro $thisKeyId  // start or end macro recording by fn+shift+q
-setVar i 0
-if ($macroRepeat == 0) setVar macroRepeat 1 //if number was not specified, repeat once
+ifShift final recordMacro $thisKeyId          // start or end macro recording by fn+shift+q
+setVar i 0                                    // declare auxiliary variable to use as an iterator
+if ($macroRepeat == 0) setVar macroRepeat 1   // if number of repetitions was not specified, specify that we should repeat once
 while ($i < $macroRepeat) {
     playMacro $thisKeyId
     setVar i ($i+1)
 }
+setVar macroRepeat 0
 ```
 
 #### Vim @ prefix key
