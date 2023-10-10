@@ -476,6 +476,8 @@ Following operators are accepted:
 
 ### Control flow
 
+_Please see advanced examples for actual usage._
+
 We implement following standard(ish) control flow constructs:
 - `{`, `}` enclosed command blocks. Please note that these are treated like regular commands, so the *have to* be followed by newlines! E.g.:
     ```
