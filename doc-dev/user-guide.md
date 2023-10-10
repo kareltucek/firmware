@@ -49,21 +49,35 @@ ifDoubletap tapKey capsLock
 
 ## Known software oddities
 
-- Karabiner Elements does weird things in combination with UHK. Fix: disable Karabiner elements.
+- Karabiner Elements does weird things in combination with UHK.
 
-- Some software receives input in wrong order when the input is too fast. E.g., shift+9 sometimes produces `(`, sometimes `9`. Fix: `set keystrokeDelay 10`.
+  Fix: disable Karabiner elements.
+
+- Some software receives input in wrong order when the input is too fast. E.g., shift+9 sometimes produces `(`, sometimes `9`.
+
+  Fix: `set keystrokeDelay 10`.
 
 - Mac ignores short caps-lock taps. Fix: add manual delay of 400 ms or so.
 
-- Games sample input instead of processing press and release events in order. As a result, primary actions of secondary role keys (e.g., secondary role escape on the UHK mouse key), or any macro taps get ignored. Fix: add manual ~50 ms delays; program secondary roles via macros.
+- Games sample input instead of processing press and release events in order. As a result, primary actions of secondary role keys (e.g., secondary role escape on the UHK mouse key), or any macro taps get ignored.
 
-- Shift in shift+click often gets ignored. (Encountered under Windows.) This is because mouse click and shift are communicated over different usb interfaces, and therefore tend to arrive in wrong order. Fix: `set keystrokeDelay 10`. 
+  Fix: add manual ~50 ms delays; program secondary roles via macros.
 
-- RDP sessions ignore modifiers. Fix: `set keystrokeDelay 10`.
+- Shift in shift+click often gets ignored. (Encountered under Windows.) This is because mouse click and shift are communicated over different usb interfaces, and therefore tend to arrive in wrong order.
 
-- Linux ignores mouse releases shorter than ~20ms, which is a trouble for touchpad's doubletap-to-drag gesture. UHK firmware fixes this by inserting manual delays of 20ms.
+  Fix: `set keystrokeDelay 10`. 
 
-- Some software gets confused by horizontal scrolling. (Encountered under Windows.) Fix: make sure your scrollAxisLock is enabled (`set module.MODULEID.scrollAxisLock 1`), maybe fine tune its settings, and make sure you scroll along vertical axis of the module in question.
+- RDP sessions ignore modifiers.
+
+  Fix: `set keystrokeDelay 10`.
+
+- Linux ignores mouse releases shorter than ~20ms, which is a trouble for touchpad's doubletap-to-drag gesture.
+
+  UHK firmware fixes this by inserting manual delays of 20ms.
+
+- Some software gets confused by horizontal scrolling. (Encountered under Windows.)
+
+  Fix: make sure your scrollAxisLock is enabled (`set module.MODULEID.scrollAxisLock 1`), maybe fine tune its settings, and make sure you scroll along vertical axis of the module in question.
 
 ## Examples
 
