@@ -583,6 +583,7 @@ Then in the macro itself:
 
 ```
 setVar backgroundColor (($backgroundColor + 1) % 3)        // let the backgroundColor var cycle over values 0, 1 and 2
+
 if ($backgroundColor == 0) {
     set backlight.constantRgb.rgb 255 0 0
 }
