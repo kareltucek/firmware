@@ -47,7 +47,7 @@ ifDoubletap tapKey capsLock
 
 4) If you encounter a bug, let me know. There are lots of features and quite few users around this codebase - if you do not report problems you find, chances are that no one else will (since most likely no one else has noticed).
 
-### Known software oddities
+## Known software oddities
 
 - Karabiner Elements does weird things in combination with UHK. Fix: disable Karabiner elements.
 
