@@ -57,7 +57,9 @@ ifDoubletap tapKey capsLock
 
   Fix: `set keystrokeDelay 10`.
 
-- Mac ignores short caps-lock taps. Fix: add manual delay of 400 ms or so.
+- Mac ignores short caps-lock taps.
+
+  Fix: add manual delay of 400 ms or so.
 
 - Games sample input instead of processing press and release events in order. As a result, primary actions of secondary role keys (e.g., secondary role escape on the UHK mouse key), or any macro taps get ignored.
 
