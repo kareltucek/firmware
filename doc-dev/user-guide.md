@@ -75,7 +75,7 @@ ifDoubletap tapKey capsLock
 
 - Linux ignores mouse releases shorter than ~20ms, which is a trouble for touchpad's doubletap-to-drag gesture.
 
-  UHK firmware fixes this by inserting manual delays of 20ms.
+  UHK firmware fixes this by inserting artificial delays of 20ms.
 
 - Some software gets confused by horizontal scrolling. (Encountered under Windows.)
 
