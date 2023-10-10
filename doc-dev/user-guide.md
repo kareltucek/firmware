@@ -47,6 +47,24 @@ ifDoubletap tapKey capsLock
 
 4) If you encounter a bug, let me know. There are lots of features and quite few users around this codebase - if you do not report problems you find, chances are that no one else will (since most likely no one else has noticed).
 
+### Known software oddities
+
+- Karabiner Elements does weird things in combination with UHK. Fix: disable Karabiner elements.
+
+- Some software receives input in wrong order when the input is too fast. E.g., shift+9 sometimes produces `(`, sometimes `9`. Fix: `set keystrokeDelay 10`.
+
+- Mac ignores short caps-lock taps. Fix: add manual delay of 400 ms or so.
+
+- Games sample input instead of processing press and release events in order. As a result, primary actions of secondary role keys (e.g., secondary role escape on the UHK mouse key), or any macro taps get ignored. Fix: add manual ~50 ms delays; program secondary roles via macros.
+
+- Shift in shift+click often gets ignored. (Encountered under Windows.) This is because mouse click and shift are communicated over different usb interfaces, and therefore tend to arrive in wrong order. Fix: `set keystrokeDelay 10`. 
+
+- RDP sessions ignore modifiers. Fix: `set keystrokeDelay 10`.
+
+- Linux ignores mouse releases shorter than ~20ms, which is a trouble for touchpad's doubletap-to-drag gesture. UHK firmware fixes this by inserting manual delays of 20ms.
+
+- Some software gets confused by horizontal scrolling. (Encountered under Windows.) Fix: make sure your scrollAxisLock is enabled (`set module.MODULEID.scrollAxisLock 1`), maybe fine tune its settings, and make sure you scroll along vertical axis of the module in question.
+
 ## Examples
 
 Every nonempty line is considered as one command. Empty line, or commented line too. Empty lines are skipped. Exception is empty command action, which counts for one command.
@@ -93,6 +111,8 @@ This enables and disables compensation of diagonal speed depending on shift stat
 ifShift set diagonalSpeedCompensation 1
 ifNotShift set diagonalSpeedCompensation 0
 ```
+
+### KeystrokeDelay and known timing issues.
 
 Another common configuration is `keystrokeDelay`. By default, UHK just churns out scancodes as fast as it can, which is a problem for various features such as the write text action or write command, because some programs out there are not prepared to receive input that fast. Following setting will slow down UHK's output so that at most one usb report is sent every 10 milliseconds.
 
@@ -661,7 +681,7 @@ untoggleLayer
 setVar qActive 0
 ```
 
-### Per-key LEDs fun:
+#### Backlight color picker
 
 Colour picker for constant colours. Bound on fn+r, fn+r+r turns colour to red, fn+r+v to violet, etc..
 
@@ -680,11 +700,15 @@ ifGesture q final set leds.enabled 0 // q - to turn off
 ifGesture p final set leds.enabled 1 // p - to turn back on
 ```
 
+#### Rotate hues v1
+
 To see all possible UHK hues (maximum saturation), hold a key with the following macro:
 
 ```
 autoRepeat progressHue
 ```
+
+#### Rotate hues v2
 
 In order to make UHK slowly rotate through all rainbow colors all the time, you can use the following macro:
 
@@ -693,6 +717,8 @@ progressHue
 delayUntil 1000
 goTo 0
 ```
+
+#### Rotate hues v3
 
 Above macro will not terminate, not even when ran multiple times. In order to fix this issue, we can use some register signalling:
 
@@ -706,6 +732,8 @@ while (true) {
     delayUntil 1000
 }
 ```
+
+#### Rotate hues from other macros
 
 You can also start this from `$onInit` by `fork rotateHues` (given you have the macro named `rotateHues`). Or add following lines to the colour picker:
 
