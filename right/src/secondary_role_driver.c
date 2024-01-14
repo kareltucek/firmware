@@ -4,6 +4,8 @@
 #include "timer.h"
 #include "math.h"
 #include "debug.h"
+#include "macros/status_buffer.h"
+#include "utils.h"
 
 /*
  * ## Strategies:
@@ -123,6 +125,8 @@ static secondary_role_state_t resolveCurrentKeyRoleIfDontKnowTimeout()
     postponer_buffer_record_type_t *actionPress;
     postponer_buffer_record_type_t *actionRelease;
 
+    const char* keyAbbreviation = Utils_KeyAbbreviation(resolutionKey);
+
     PostponerQuery_InfoByKeystate(resolutionKey, &dummy, &dualRoleRelease);
     PostponerQuery_InfoByQueueIdx(0, &actionPress, &actionRelease);
 
@@ -132,18 +136,23 @@ static secondary_role_state_t resolveCurrentKeyRoleIfDontKnowTimeout()
         && resolutionKey == previousResolutionKey
         && resolutionStartTime - previousResolutionTime < SecondaryRoles_AdvancedStrategyDoubletapTime
         ) {
+        Macros_ReportPrintf(NULL, "Primary A: %s", keyAbbreviation);
         return SecondaryRoleState_Primary;
     }
+
 
     //action key has not been pressed yet -> timeout scenarios
     if (actionPress == NULL) {
         if (dualRoleRelease != NULL) {
             return SecondaryRoleState_Primary;
+            Macros_ReportPrintf(NULL, "Primary B: %s", keyAbbreviation);
         } else if (CurrentTime - dualRolePressTime > SecondaryRoles_AdvancedStrategyTimeout) {
             switch (SecondaryRoles_AdvancedStrategyTimeoutAction) {
             case SecondaryRoleState_Primary:
+                Macros_ReportPrintf(NULL, "Primary C: %s", keyAbbreviation);
                 return SecondaryRoleState_Primary;
             case SecondaryRoleState_Secondary:
+                Macros_ReportPrintf(NULL, "Secondary A: %s", keyAbbreviation);
                 return SecondaryRoleState_Secondary;
             default:
                 return SecondaryRoleState_DontKnowYet;
@@ -159,6 +168,7 @@ static secondary_role_state_t resolveCurrentKeyRoleIfDontKnowTimeout()
         bool actionKeyWasReleasedFirst = actionRelease != NULL && dualRoleRelease != NULL && (actionRelease->time < dualRoleRelease->time - SecondaryRoles_AdvancedStrategySafetyMargin);
 
         if (actionKeyWasReleasedFirst || actionKeyWasReleasedButDualkeyNot) {
+            Macros_ReportPrintf(NULL, "Secondary B: %s", keyAbbreviation);
             return SecondaryRoleState_Secondary;
         }
     }
@@ -166,9 +176,11 @@ static secondary_role_state_t resolveCurrentKeyRoleIfDontKnowTimeout()
     int32_t activeTime = (dualRoleRelease == NULL ? CurrentTime : dualRoleRelease->time) - dualRolePressTime;
 
     if (activeTime > SecondaryRoles_AdvancedStrategyTimeout + SecondaryRoles_AdvancedStrategySafetyMargin) {
+        Macros_ReportPrintf(NULL, "Secondary C: %s", keyAbbreviation);
         return SecondaryRoleState_Secondary;
     } else {
         if (dualRoleRelease != NULL) {
+            Macros_ReportPrintf(NULL, "Primary D: %s", keyAbbreviation);
             return SecondaryRoleState_Primary;
         } else {
             return SecondaryRoleState_DontKnowYet;

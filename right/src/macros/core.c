@@ -57,7 +57,7 @@ uint16_t DoubletapConditionTimeout = 400;
 uint16_t AutoRepeatInitialDelay = 500;
 uint16_t AutoRepeatDelayRate = 50;
 
-bool RecordKeyTiming = false;
+bool RecordKeyTiming = true;
 
 static void checkSchedulerHealth(const char* tag);
 static void wakeMacroInSlot(uint8_t slotIdx);

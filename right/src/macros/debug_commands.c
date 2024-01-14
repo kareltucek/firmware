@@ -150,7 +150,7 @@ macro_result_t Macros_ProcessStatsRecordKeyTimingCommand()
     if (Macros_DryRun) {
         return MacroResult_Finished;
     }
-    RecordKeyTiming = !RecordKeyTiming;
+    RecordKeyTiming = true;
     return MacroResult_Finished;
 }
 

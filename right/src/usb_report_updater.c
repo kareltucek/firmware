@@ -338,8 +338,10 @@ static void commitKeyState(key_state_t *keyState, bool active)
 {
     WATCH_TRIGGER(keyState);
     if (RecordKeyTiming) {
+        const char* keyAbbreviation = Utils_KeyAbbreviation(keyState);
         Macros_SetStatusString( active ? "DOWN" : "UP", NULL);
-        Macros_SetStatusNum(Utils_KeyStateToKeyId(keyState));
+        Macros_SetStatusChar(' ');
+        Macros_SetStatusString(keyAbbreviation, NULL);
         Macros_SetStatusNum(CurrentTime);
         Macros_SetStatusNum(CurrentPostponedTime);
         Macros_SetStatusChar('\n');
