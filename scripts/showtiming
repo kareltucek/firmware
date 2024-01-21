@@ -18,15 +18,15 @@ BEGIN {
            refY=\"0\" \
            orient=\"auto\" \
            stockid=\"Stop\" \
-           markerWidth=\"1\" \
-           markerHeight=\"1\" \
-           viewBox=\"0 0 1 1\" \
+           markerWidth=\"2\" \
+           markerHeight=\"2\" \
+           viewBox=\"0 0 1 2\" \
            isstock=\"true\" \
            collect=\"always\" \
            preserveAspectRatio=\"xMidYMid\"> \
           <path \
              style=\"fill:none;stroke:context-stroke;stroke-width:1\" \
-             d=\"M 0,1 V -1\" \
+             d=\"M 0,2 V -2\" \
              id=\"path171\" /> \
         </marker> \
       </defs> \
@@ -35,9 +35,9 @@ BEGIN {
 
     textOffset = 5;
     fontSize = 12;
-    leftMargin = 10;
-    topMargin = 10;
-    lineHeight = fontSize;
+    lineHeight = 16;
+    leftMargin = 30;
+    topMargin = 30;
     lastY = topMargin + lineHeight;
 }
 
@@ -47,8 +47,8 @@ func initTime(time) {
         zeroTime = time - leftMargin; 
         endTime = zeroTime;
     }
-    if (time > endTime) {
-        endTime = time;
+    if (time + 2*leftMargin > endTime) {
+        endTime = time + 2*leftMargin;
     }
 }
 
@@ -82,19 +82,23 @@ func drawLine(x1, y1, x2, y2) {
     print(" <line x1=\"" x1 "\" y1=\"" y1 "\" x2=\"" x2 "\" y2=\"" y2 "\" stroke=\"black\" " lineConstants " />");
 }
 
+func drawPoint(x, y) {
+    print("<circle cx=\"" x "\" cy=\"" y "\" r=\"2\" fill=\"black\" />");
+}
+
 func drawTimeLine(x) {
     lineConstants="stroke-width=\"0.5\"";
     print(" <line x1=\"" x "\" y1=\"" lineHeight "\" x2=\"" x "\" y2=\"100%\" stroke=\"gray\" " lineConstants " />");
 }
 
 func drawKeystroke(label, y, start, postponedStart, end, postponedEnd) {
-    drawLine(start, y-0.5, end, y-0.5);
-    drawLine(postponedStart, y+0.5, postponedEnd, y+0.5);
+    drawLine(start, y-1.5, end, y-1.5);
+    drawLine(postponedStart, y+1.5, postponedEnd, y+1.5);
     drawTextLeft(start, y, label);
 }
 
-func drawPoint(label, x, y) {
-    drawLine(x, y, x, y);
+func drawComment(label, x, y) {
+    drawPoint(x, y);
     drawTextRight(x, y, label);
 }
 
@@ -166,14 +170,14 @@ function abs(v) {return v < 0 ? -v : v}
     recordTimePoint(postponedEnd);
     drawTextAbove(timeToCoordinates((start + postponedEnd)/2), keyY[id], timeLabel);
 }
-/.*/ {
+/^[0-9].*/ {
     time = $1;
     $1 = "";
     text = $0;
     /*y = lastY + lineHeight;*/
     y = getY();
     recordTimePoint(time);
-    drawPoint(text, timeToCoordinates(time), y);
+    drawComment(text, timeToCoordinates(time), y);
 }
 
 END {
