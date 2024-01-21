@@ -334,22 +334,27 @@ static void mergeReports(void)
     }
 }
 
-static void commitKeyState(key_state_t *keyState, bool active)
+void RecordKeyTiming_ReportKeystroke(key_state_t *keyState, bool active, uint32_t pressTime, uint32_t activationTime)
 {
-    WATCH_TRIGGER(keyState);
     if (RecordKeyTiming) {
         const char* keyAbbreviation = Utils_KeyAbbreviation(keyState);
         Macros_SetStatusString( active ? "DOWN" : "UP", NULL);
         Macros_SetStatusChar(' ');
         Macros_SetStatusString(keyAbbreviation, NULL);
-        Macros_SetStatusNum(CurrentTime);
-        Macros_SetStatusNum(CurrentPostponedTime);
+        Macros_SetStatusNum(pressTime);
+        Macros_SetStatusNum(activationTime);
         Macros_SetStatusChar('\n');
     }
+}
+
+static void commitKeyState(key_state_t *keyState, bool active)
+{
+    WATCH_TRIGGER(keyState);
 
     if (PostponerCore_IsActive()) {
         PostponerCore_TrackKeyEvent(keyState, active, 255);
     } else {
+        RecordKeyTiming_ReportKeystroke(keyState, active, CurrentTime, CurrentTime);
         keyState->current = active;
     }
     WAKE_MACROS_ON_KEYSTATE_CHANGE();
@@ -570,7 +575,8 @@ void UpdateUsbReports(void)
         MacroRecorder_RecordBasicReport(ActiveUsbBasicKeyboardReport);
 
         if (RecordKeyTiming) {
-            Utils_PrintReport("OUT", ActiveUsbBasicKeyboardReport);
+            Macros_SetStatusNumSpaced(CurrentTime, false);
+            Utils_PrintReport(" OUT", ActiveUsbBasicKeyboardReport);
         }
 
         if(RuntimeMacroRecordingBlind) {

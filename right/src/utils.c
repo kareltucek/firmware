@@ -4,6 +4,7 @@
 #include "keymap.h"
 #include "layer.h"
 #include "macros/core.h"
+#include "macros/keyid_parser.h"
 #include "macros/status_buffer.h"
 #include "macros/shortcut_parser.h"
 #include "led_display.h"
@@ -114,24 +115,36 @@ void Utils_SafeStrCopy(char* target, const char* src, uint8_t max) {
 
 const char* Utils_KeyAbbreviation(key_state_t* keyState)
 {
-    static char buffer[4];
-
-    uint8_t keyId = Utils_KeyStateToKeyId(keyState);
-    key_coordinates_t coordinates = Utils_KeyIdToKeyCoordinates(keyId);
-    key_action_t* action = &CurrentKeymap[LayerId_Base][coordinates.slotId][coordinates.inSlotId];
-
-    char maybeAbbreviation = DEFAULT_SCANCODE_ABBREVIATION;
-    if (action->type == KeyActionType_Keystroke && action->keystroke.keystrokeType == KeystrokeType_Basic && action->keystroke.modifiers == 0) {
-        maybeAbbreviation = MacroShortcutParser_ScancodeToCharacter(action->keystroke.scancode);
-    }
-
-    if (maybeAbbreviation == DEFAULT_SCANCODE_ABBREVIATION) {
-        snprintf(buffer, sizeof(buffer)-1, "%d", keyId);
-        buffer[sizeof(buffer)-1] = '\0';
+    if (true) {
+        //static enUs mapping
+        uint8_t keyId = Utils_KeyStateToKeyId(keyState);
+        return MacroKeyIdParser_KeyIdToAbbreviation(keyId);
     } else {
-        buffer[0] = maybeAbbreviation;
-        buffer[1] = '\n';
+        //action based mapping
+        static char buffer[4];
+
+        uint8_t keyId = Utils_KeyStateToKeyId(keyState);
+
+        MacroKeyIdParser_KeyIdToAbbreviation(keyId);
+
+        key_coordinates_t coordinates = Utils_KeyIdToKeyCoordinates(keyId);
+        key_action_t* action = &CurrentKeymap[LayerId_Base][coordinates.slotId][coordinates.inSlotId];
+
+        char maybeAbbreviation = DEFAULT_SCANCODE_ABBREVIATION;
+        if (action->type == KeyActionType_Keystroke && action->keystroke.keystrokeType == KeystrokeType_Basic && action->keystroke.modifiers == 0) {
+            maybeAbbreviation = MacroShortcutParser_ScancodeToCharacter(action->keystroke.scancode);
+        }
+
+        if (maybeAbbreviation == DEFAULT_SCANCODE_ABBREVIATION) {
+            snprintf(buffer, sizeof(buffer)-1, "%d", keyId);
+            buffer[sizeof(buffer)-1] = '\0';
+        } else {
+            buffer[0] = maybeAbbreviation;
+            buffer[1] = '\n';
+        }
+
+        return buffer;
     }
 
-    return buffer;
+
 }

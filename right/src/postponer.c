@@ -71,6 +71,7 @@ static void applyEventAndConsume(postponer_buffer_record_type_t* rec) {
     switch (rec->event.type) {
         case PostponerEventType_PressKey:
         case PostponerEventType_ReleaseKey:
+            RecordKeyTiming_ReportKeystroke(rec->event.key.keyState, rec->event.key.active, rec->time, CurrentTime);
             rec->event.key.keyState->current = rec->event.key.active;
             Postponer_LastKeyLayer = rec->event.key.layer;
             Postponer_LastKeyMods = rec->event.key.modifiers;
