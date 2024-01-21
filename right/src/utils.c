@@ -128,6 +128,9 @@ const char* Utils_KeyAbbreviation(key_state_t* keyState)
     if (maybeAbbreviation == DEFAULT_SCANCODE_ABBREVIATION) {
         snprintf(buffer, sizeof(buffer)-1, "%d", keyId);
         buffer[sizeof(buffer)-1] = '\0';
+    } else {
+        buffer[0] = maybeAbbreviation;
+        buffer[1] = '\n';
     }
 
     return buffer;
