@@ -2,6 +2,7 @@
 #include "key_action.h"
 #include "led_display.h"
 #include "layer.h"
+#include "slot.h"
 #include "usb_interfaces/usb_interface_basic_keyboard.h"
 #include "usb_interfaces/usb_interface_mouse.h"
 #include "keymap.h"
@@ -541,6 +542,17 @@ void UpdateUsbReports(void)
 {
     static uint32_t lastUpdateTime;
     static uint32_t lastReportTime;
+
+    if (RecordKeyTiming && false) {
+        static uint32_t nextActivation = 0;
+        static uint8_t keyMod = 0;
+
+        if (nextActivation < CurrentTime) {
+            KeyStates[SlotId_LeftKeyboardHalf][8+keyMod].hardwareSwitchState = 1;
+            keyMod = (keyMod+1)%5;
+            nextActivation = CurrentTime+100;
+        }
+    }
 
     for (uint8_t keyId = 0; keyId < RIGHT_KEY_MATRIX_KEY_COUNT; keyId++) {
         KeyStates[SlotId_RightKeyboardHalf][keyId].hardwareSwitchState = RightKeyMatrix.keyStates[keyId];

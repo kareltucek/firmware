@@ -191,8 +191,12 @@ static secondary_role_state_t resolveCurrentKeyRoleIfDontKnowTimeout()
 static secondary_role_state_t resolveCurrentKeyRoleIfDontKnowSimple()
 {
     if (PostponerQuery_PendingKeypressCount() > 0 && !PostponerQuery_IsKeyReleased(resolutionKey)) {
+        const char* keyAbbreviation = Utils_KeyAbbreviation(resolutionKey);
+        Macros_ReportPrintf(NULL, "%d Secondary SA: %s", CurrentTime, keyAbbreviation);
         return SecondaryRoleState_Secondary;
     } else if (PostponerQuery_IsKeyReleased(resolutionKey) /*assume PostponerQuery_PendingKeypressCount() == 0, but gather race conditions too*/) {
+        const char* keyAbbreviation = Utils_KeyAbbreviation(resolutionKey);
+        Macros_ReportPrintf(NULL, "%d Primary SA: %s", CurrentTime, keyAbbreviation);
         return SecondaryRoleState_Primary;
     } else {
         return SecondaryRoleState_DontKnowYet;
@@ -207,6 +211,8 @@ static secondary_role_state_t resolveCurrentKey(secondary_role_strategy_t strate
         return resolutionState;
     case SecondaryRoleState_DontKnowYet:
         if (activateSecondaryImmediately) {
+            const char* keyAbbreviation = Utils_KeyAbbreviation(resolutionKey);
+            Macros_ReportPrintf(NULL, "%d Secondary D: %s", CurrentTime, keyAbbreviation);
             activateSecondaryImmediately = false;
             return SecondaryRoleState_Secondary;
         }
