@@ -20,17 +20,15 @@ If you want to give it a try, you should continue at.
 
 Since 9.0.0, there are some groundbreaking changes:
 
-- This branch has been fully merged into uhk/master, and further improvements are going to be merged straight into uhk/master. Not all commands are enabled by default though - in order to enable full feature set, you need to allow it using a `set macroEngine.extendedCommands 1`.
+- This branch has been fully merged into uhk/master, and further improvements are going to be merged straight into uhk/master.
 
 - There is now a dedicated command macro action.
 
 - Multiline scripts are now supported.
 
-From now on, using official firmware is therefore recommended. I will still release a new build time to time, which will include backward-compatibility tweaks, but in order to stay up to date, you should probably migrate to the new format.
+From now on, please use the official firmware.
 
 In order to migrate to official build:
-
-- Create a new macro named `$onInit` containing `set macroEngine.extendedCommands 1`. This will allow full feature set when your keyboard is booted up.
 
 - You need export your UserConfig.json, transform all relevant text actions to command actions and import your UserConfig.json back. You can use IzK666's conversion tool which is available at [https://izk666.github.io/UHK-Viewer-v5/](https://izk666.github.io/UHK-Viewer-v5/), or use any automation tool of your choice (vim macro, sed, ...) to transform the file into the required format.
 
