@@ -317,7 +317,7 @@ void PS2_CLOCK_IRQ_HANDLER(void)
                     lastX = deltaX;
                     lastY = deltaY;
 
-                    recognizeDrifts(deltaX, deltaY);
+                    // recognizeDrifts(deltaX, deltaY);
                 } else {
                     // If there was error then current data is not relevant.
                     // We use the last delta as an approximation.
