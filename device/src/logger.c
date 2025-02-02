@@ -64,7 +64,7 @@ void LogUOS(const char *fmt, ...) {
 
 void LogConstantTo(device_id_t deviceId, log_target_t logMask, const char* buffer) {
     if (DEVICE_ID == deviceId) {
-        if (logMask & LogTarget_Oled) {
+        if ((logMask & LogTarget_Oled) && DEBUG_MODE) {
             Oled_LogConstant(buffer);
         }
         if (logMask & LogTarget_Uart) {
