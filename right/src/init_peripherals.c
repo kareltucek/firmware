@@ -15,6 +15,7 @@
 #include "usb_api.h"
 #include "slave_scheduler.h"
 #include "bootloader/wormhole.h"
+#include "module/uart.h"
 
 bool IsBusPalOn;
 volatile uint32_t I2cMainBusRequestedBaudRateBps = I2C_MAIN_BUS_NORMAL_BAUD_RATE;

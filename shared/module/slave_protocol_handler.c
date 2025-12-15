@@ -12,45 +12,63 @@
 #include "versioning.h"
 #include <string.h>
 #include "atomicity.h"
+#include <stdint.h>
+#include <stdbool.h>
 
 i2c_message_t RxMessage;
 i2c_message_t TxMessage;
 
-void SlaveRxHandler(void)
+bool IsI2cRxTransaction(uint8_t commandId) {
+    switch (commandId) {
+        case SlaveCommand_JumpToBootloader:
+        case SlaveCommand_SetTestLed:
+        case SlaveCommand_SetLedPwmBrightness:
+        case SlaveCommand_ModuleSpecificCommand:
+            return true;
+        case SlaveCommand_RequestProperty:
+        case SlaveCommand_RequestKeyStates:
+            return false;
+    }
+    return true;
+}
+
+void SlaveRxHandler(uint16_t offset)
 {
-    if (!CRC16_IsMessageValid(&RxMessage)) {
+    if (!MODULE_OVER_UART && !CRC16_IsMessageValid(&RxMessage)) {
         TxMessage.length = 0;
         return;
     }
 
-    uint8_t commandId = RxMessage.data[0];
+    uint8_t* data = RxMessage.data + offset;
+    uint8_t commandId = data[0];
     switch (commandId) {
     case SlaveCommand_JumpToBootloader:
         NVIC_SystemReset();
         break;
     case SlaveCommand_SetTestLed:
         TxMessage.length = 0;
-        bool isLedOn = RxMessage.data[1];
+        bool isLedOn = data[1];
         TestLed_Set(isLedOn);
         break;
     case SlaveCommand_SetLedPwmBrightness:
         TxMessage.length = 0;
-        uint8_t brightnessPercent = RxMessage.data[1];
+        uint8_t brightnessPercent = data[1];
         LedPwm_SetBrightness(brightnessPercent);
         break;
     case SlaveCommand_ModuleSpecificCommand: {
-        Module_ModuleSpecificCommand(RxMessage.data[1]);
+        Module_ModuleSpecificCommand(data[1]);
         break;
     }
     }
 }
 
-void SlaveTxHandler(void)
+void SlaveTxHandler(uint16_t rxOffset)
 {
-    uint8_t commandId = RxMessage.data[0];
+    uint8_t* rxData = RxMessage.data + rxOffset;
+    uint8_t commandId = rxData[0];
     switch (commandId) {
     case SlaveCommand_RequestProperty: {
-        uint8_t propertyId = RxMessage.data[1];
+        uint8_t propertyId = rxData[1];
         switch (propertyId) {
         case SlaveProperty_Sync: {
             memcpy(TxMessage.data, SlaveSyncString, SLAVE_SYNC_STRING_LENGTH);
@@ -131,5 +149,7 @@ void SlaveTxHandler(void)
     }
     }
 
-    CRC16_UpdateMessageChecksum(&TxMessage);
+    if (!MODULE_OVER_UART) {
+        CRC16_UpdateMessageChecksum(&TxMessage);
+    }
 }

@@ -14,7 +14,8 @@
 
 // Functions:
 
-    void SlaveRxHandler(void);
-    void SlaveTxHandler(void);
+    void SlaveRxHandler(uint16_t offset);
+    void SlaveTxHandler(uint16_t offset);
+    bool IsI2cRxTransaction(uint8_t commandId);
 
 #endif
