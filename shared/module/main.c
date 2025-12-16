@@ -18,11 +18,12 @@ int main(void)
 
     while (1) {
         Module_Loop();
-        __WFI();
 
         if (MODULE_OVER_UART) {
             ModuleUart_Loop();
         }
+
+        __WFI();
     }
 }
 

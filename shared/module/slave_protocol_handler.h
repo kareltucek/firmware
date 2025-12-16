@@ -12,10 +12,12 @@
     extern i2c_message_t RxMessage;
     extern i2c_message_t TxMessage;
 
+    extern bool SlaveProtocol_FreeUpdateAllowed;
+
 // Functions:
 
-    void SlaveRxHandler(uint16_t offset);
-    void SlaveTxHandler(uint16_t offset);
+    void SlaveRxHandler(const uint8_t* data);
+    void SlaveTxHandler(const uint8_t* data);
     bool IsI2cRxTransaction(uint8_t commandId);
 
 #endif

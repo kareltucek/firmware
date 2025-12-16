@@ -18,6 +18,8 @@
 i2c_message_t RxMessage;
 i2c_message_t TxMessage;
 
+bool SlaveProtocol_FreeUpdateAllowed = false;
+
 bool IsI2cRxTransaction(uint8_t commandId) {
     switch (commandId) {
         case SlaveCommand_JumpToBootloader:
@@ -32,14 +34,8 @@ bool IsI2cRxTransaction(uint8_t commandId) {
     return true;
 }
 
-void SlaveRxHandler(uint16_t offset)
+void SlaveRxHandler(const uint8_t* data)
 {
-    if (!MODULE_OVER_UART && !CRC16_IsMessageValid(&RxMessage)) {
-        TxMessage.length = 0;
-        return;
-    }
-
-    uint8_t* data = RxMessage.data + offset;
     uint8_t commandId = data[0];
     switch (commandId) {
     case SlaveCommand_JumpToBootloader:
@@ -62,12 +58,12 @@ void SlaveRxHandler(uint16_t offset)
     }
 }
 
-void SlaveTxHandler(uint16_t rxOffset)
+void SlaveTxHandler(const uint8_t* rxData)
 {
-    uint8_t* rxData = RxMessage.data + rxOffset;
     uint8_t commandId = rxData[0];
     switch (commandId) {
     case SlaveCommand_RequestProperty: {
+        SlaveProtocol_FreeUpdateAllowed = false;
         uint8_t propertyId = rxData[1];
         switch (propertyId) {
         case SlaveProperty_Sync: {
@@ -144,6 +140,7 @@ void SlaveTxHandler(uint16_t rxOffset)
             ENABLE_IRQ();
             messageLength += sizeof(pointer_delta_t);
         }
+        SlaveProtocol_FreeUpdateAllowed = true;
         TxMessage.length = messageLength;
         break;
     }
@@ -153,3 +150,5 @@ void SlaveTxHandler(uint16_t rxOffset)
         CRC16_UpdateMessageChecksum(&TxMessage);
     }
 }
+
+

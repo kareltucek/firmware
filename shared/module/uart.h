@@ -13,6 +13,7 @@
 #define UART_BUS_PIN_MUX  kPORT_MuxAlt3
 #define UART_BUS_BAUD     9600U
 
+void ModuleUart_RequestKeyStatesUpdate(void);
 void ModuleUart_Loop(void);
 void InitModuleUart(void);
 

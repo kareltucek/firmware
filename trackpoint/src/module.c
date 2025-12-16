@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "uart.h"
+#include "module/init_peripherals.h"
 
 // TODO: After sorting out pullup values and refactors, it turns out that the v2 trackpoint works even with the v1 driver.
 // However, the v2 driver is better abstracted, so if we want to unify the code, we should probably do so towards the v2 driver.
@@ -383,6 +384,9 @@ static void processDeltas(ps2_driver_state_t* state) {
         state->phase = Phase_ResetBegin;
     } else {
         state->phase = Phase_ReadByte1;
+    }
+    if (MODULE_OVER_UART) {
+        ModuleUart_RequestKeyStatesUpdate();
     }
 }
 

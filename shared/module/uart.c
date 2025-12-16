@@ -14,52 +14,28 @@
 
 #define CRC_LEN 2
 
-lpuart_config_t uartConfig;
-lpuart_handle_t uartHandle;
-lpuart_transfer_t uartTransfer;
+static lpuart_config_t uartConfig;
+static lpuart_handle_t uartHandle;
+static lpuart_transfer_t uartTransfer;
 
 #define UART_BUFF_SIZE UART_MAX_SERIALIZED_MESSAGE_LENGTH
-uint8_t uartRxBuffer[UART_MAX_SERIALIZED_MESSAGE_LENGTH];
-uint16_t uartRxReadCount = 0;
+static uint8_t uartRxBuffer[UART_BUFF_SIZE];
+static uint16_t uartRxReadCount = 0;
 
-bool hasRawIncomingMessage = false;
-bool hasValidIncomingMessage = false;
+static bool hasRawIncomingMessage = false;
+static bool updateKeys = false;
 
 static uart_parser_t uartParser;
 
 
-uint32_t get_stack_size(void)
-{
-    extern char __StackTop;
-    extern char __StackLimit;
-    return (uint32_t)&__StackTop - (uint32_t)&__StackLimit;
-}
-
-uint32_t get_stack_used(void)
-{
-    extern char __StackTop;
-    uint32_t sp;
-    __asm volatile ("MOV %0, SP" : "=r" (sp));
-    return (uint32_t)&__StackTop - sp;
-}
-
-static void outputStacks() {
-    uint8_t s = get_stack_size() / 4;
-    uint8_t u = get_stack_used() / 4;
-
-    debugOut[NEXTPOS] = 1;
-    debugOut[NEXTPOS] = s;
-    debugOut[NEXTPOS] = u;
-}
-
-static inline void handleSlaveProtocolMessage(uint16_t dataOffset) {
+static inline void handleSlaveProtocolMessage(uint8_t* data) {
     TxMessage.length = 0;
 
     // they read the rx buffer and write the tx buffer
-    if (IsI2cRxTransaction(RxMessage.data[dataOffset])) {
-        SlaveRxHandler(dataOffset);
+    if (IsI2cRxTransaction(data[0])) {
+        SlaveRxHandler(data);
     } else {
-        SlaveTxHandler(dataOffset);
+        SlaveTxHandler(data);
     }
 
     UartParser_SetTxBuffer(&uartParser, uartRxBuffer);
@@ -87,17 +63,18 @@ static void startListening(void) {
 void ModuleUart_Loop(void)
 {
     if (hasRawIncomingMessage) {
-        outputStacks();
         hasRawIncomingMessage = false;
         processRxBuffer();
-
-        if (hasValidIncomingMessage) {
-            hasValidIncomingMessage = false;
-            handleSlaveProtocolMessage(CRC_LEN);
-        }
         startListening();
     }
+
+    if (updateKeys) {
+        updateKeys = false;
+        uint8_t keyStatesCommand = SlaveCommand_RequestKeyStates;
+        handleSlaveProtocolMessage(&keyStatesCommand);
+    }
 }
+
 
 
 static void processDeserializedRxData(void *state, uart_control_t messageKind, const uint8_t* data, uint16_t len) {
@@ -110,8 +87,8 @@ static void processDeserializedRxData(void *state, uart_control_t messageKind, c
             break;
         case UartControl_ValidMessage:
             // continues in handleSlaveProtocolMessage, but pops a few calls from the stack first
-            hasValidIncomingMessage = true;
             RxMessage.length = len;
+            handleSlaveProtocolMessage(RxMessage.data+CRC_LEN);
             break;
     }
 }
@@ -152,6 +129,12 @@ static void initUartParser(void) {
     UartParser_InitParser(&uartParser, &processDeserializedRxData, NULL);
     UartParser_SetRxBuffer(&uartParser, RxMessage.data);
     UartParser_SetTxBuffer(&uartParser, RxMessage.data);
+}
+
+void ModuleUart_RequestKeyStatesUpdate(void) {
+    if (SlaveProtocol_FreeUpdateAllowed) {
+        // updateKeys = true;
+    }
 }
 
 void InitModuleUart(void)
