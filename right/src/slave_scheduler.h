@@ -17,7 +17,7 @@
 
     #define SLAVE_COUNT 8
     #define IS_VALID_SLAVE_ID(slaveId) (0 <= slaveId && slaveId < SLAVE_COUNT)
-    #define IS_STATUS_I2C_ERROR(status) (kStatus_I2C_Busy <= status && status <= kStatus_I2C_Timeout)
+    #define IS_STATUS_I2C_ERROR(status) (kStatus_I2C_Busy <= status && status <= kStatus_I2C_Timeout && status != kStatus_Fail)
 
 // Typedefs:
 

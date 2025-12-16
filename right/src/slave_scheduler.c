@@ -111,9 +111,9 @@ static void finalizePreviousTransfer(uhk_slave_t *previousSlave, status_t previo
     }
 }
 
-static void tryInitiateTransfer(uhk_slave_t* currentSlave, bool *transferIsScheduled, bool *shouldHold)
+static void tryInitiateTransfer(uhk_slave_t* currentSlave, bool isFirst, bool *transferIsScheduled, bool *shouldHold)
 {
-    if (!currentSlave->isConnected) {
+    if (!currentSlave->isConnected && isFirst) {
         currentSlave->init(currentSlave->perDriverId);
     }
 
@@ -131,6 +131,7 @@ static void slaveSchedulerCallback(I2C_Type *base, i2c_master_handle_t *handle, 
 {
     bool isTransferScheduled = false;
     bool shouldHold = false;
+    bool isFirst = true;
     I2cSlaveScheduler_Counter++;
 
     Trace_Printc("<");
@@ -141,7 +142,7 @@ static void slaveSchedulerCallback(I2C_Type *base, i2c_master_handle_t *handle, 
     do {
         uhk_slave_t *currentSlave = Slaves + currentSlaveId;
 
-        tryInitiateTransfer(currentSlave, &isTransferScheduled, &shouldHold);
+        tryInitiateTransfer(currentSlave, isFirst, &isTransferScheduled, &shouldHold);
 
         if (!shouldHold || !currentSlave->isConnected) {
             previousSlaveId = currentSlaveId;
@@ -150,6 +151,7 @@ static void slaveSchedulerCallback(I2C_Type *base, i2c_master_handle_t *handle, 
             previousSlaveId = currentSlaveId;
         }
 
+        isFirst = false;
     } while (!isTransferScheduled);
 
     Trace_Printc(">");
@@ -159,10 +161,12 @@ void SlaveScheduler_ScheduleSingleTransfer(uint8_t slaveId)
 {
     bool initiated = false;
     bool shouldHold = false;
+    bool isFirst = true;
 
     while (!initiated) {
         uhk_slave_t *currentSlave = Slaves + slaveId;
-        tryInitiateTransfer(currentSlave, &initiated, &shouldHold);
+        tryInitiateTransfer(currentSlave, isFirst, &initiated, &shouldHold);
+        isFirst = false;
     }
 }
 

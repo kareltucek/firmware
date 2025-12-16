@@ -209,7 +209,7 @@ static void updateConnectionState(uart_state_t *uartState) {
     uint32_t pingDiff = (k_uptime_get() - uartState->lastPingTime);
     connection_id_t connectionId = uartState->connectionId;
     bool oldIsConnected = Connections_IsReady(connectionId);
-    bool newIsConnected =  pingDiff < UART_TIMEOUT;
+    bool newIsConnected =  pingDiff < UART_BRIDGE_TIMEOUT;
     if (oldIsConnected != newIsConnected) {
         Connections_SetState(connectionId, newIsConnected ? ConnectionState_Ready : ConnectionState_Disconnected);
         k_sem_give(&uartState->txBufferBusy);
@@ -296,7 +296,7 @@ static void initUart(
     uartState->txState = UartTxState_Idle;
     uartState->rxState = UartRxState_Idle;
     uartState->lastMessageSentTime = 0;
-    uartState->lastPingTime = -2*UART_TIMEOUT;
+    uartState->lastPingTime = -2*UART_BRIDGE_TIMEOUT;
     uartState->invalidMessagesCounter = 0;
     uartState->resendTries = 0;
     uartState->remoteDeviceId = remoteDeviceId;

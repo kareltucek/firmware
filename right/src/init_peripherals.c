@@ -11,6 +11,7 @@
 #include "peripherals/adc.h"
 #include "init_peripherals.h"
 #include "eeprom.h"
+#include "slave_protocol.h"
 #include "timer.h"
 #include "usb_api.h"
 #include "slave_scheduler.h"
@@ -133,6 +134,9 @@ static void initI2cBus(i2c_bus_t *i2cBus)
 
 void ReinitI2cMainBus(void)
 {
+    if (SLAVE_PROTOCOL_OVER_UART) {
+        return;
+    }
     I2C_MasterDeinit(I2C_MAIN_BUS_BASEADDR);
     initI2cBus(&i2cMainBus);
     InitSlaveScheduler();

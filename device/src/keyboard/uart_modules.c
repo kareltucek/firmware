@@ -7,6 +7,7 @@
 #include "i2c_compatibility.h"
 #include <zephyr/drivers/pinctrl.h>
 #include "pin_wiring.h"
+#include "zephyr/kernel.h"
 
 #define CRC_LEN 2
 #define THREAD_STACK_SIZE 1000
@@ -14,6 +15,7 @@
 
 static K_THREAD_STACK_DEFINE(stack_area, THREAD_STACK_SIZE);
 static struct k_thread thread_data;
+static k_tid_t tid = 0;
 
 typedef struct {
     uart_link_t core;
@@ -23,6 +25,11 @@ typedef struct {
 } uart_state_t;
 
 static uart_state_t modulesState;
+
+bool shouldProcess = false;
+status_t lastStatus = kStatus_Fail;
+
+static K_SEM_DEFINE(newMessageSemaphore, 1, 1);
 
 static void receivePacket(void *state, uart_control_t messageKind, const uint8_t* data, uint16_t len) {
     uhk_module_state_t *uhkModuleState = UhkModuleStates + UhkModuleDriverId_RightModule;
@@ -35,6 +42,7 @@ static void receivePacket(void *state, uart_control_t messageKind, const uint8_t
             status = kStatus_Success;
             break;
         case UartControl_InvalidMessage:
+            printk("invalid crc\n");
             uhkModuleState->rxMessage.crc = 0;
             status = kStatus_Success;
             break;
@@ -43,13 +51,22 @@ static void receivePacket(void *state, uart_control_t messageKind, const uint8_t
             break;
     }
 
-    SlaveScheduler_FinalizeTransfer(UhkModuleDriverId_RightModule, status);
+    lastStatus = status;
+
+    if (status == kStatus_Success) {
+        k_sem_give(&newMessageSemaphore);
+    }
 }
 
 static void uartLoop(void *arg1, void *arg2, void *arg3) {
     while (true) {
+        if (lastStatus == kStatus_Fail) {
+            printk("fail?\n");
+        }
+        SlaveScheduler_FinalizeTransfer(UhkModuleDriverId_RightModule, lastStatus);
+        lastStatus = kStatus_Fail;
         SlaveScheduler_ScheduleSingleTransfer(UhkModuleDriverId_RightModule);
-        k_sleep(K_MSEC(1000));
+        k_sem_take(&newMessageSemaphore, K_MSEC(UART_MODULE_TIMEOUT_MS));
     }
 }
 
@@ -76,7 +93,7 @@ void InitUartModules(void) {
                 PinWiringConfig->device_uart_modules
                 );
 
-        k_thread_create(
+        tid = k_thread_create(
                 &thread_data, stack_area,
                 K_THREAD_STACK_SIZEOF(stack_area),
                 uartLoop,
@@ -95,6 +112,9 @@ void UartModules_Enable() {
 }
 
 int Uart_SendModuleMessage(i2c_message_t* msg) {
+    uhk_module_state_t *uhkModuleState = UhkModuleStates + UhkModuleDriverId_RightModule;
+    uhkModuleState->rxMessage.crc = 0;
+
     uart_state_t *uartState = &modulesState;
 
     if (uartState == NULL || uartState->core.device == NULL) {

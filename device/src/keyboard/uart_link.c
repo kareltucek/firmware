@@ -78,7 +78,7 @@ void UartLink_Enable(uart_link_t *uartState) {
         return;
     }
     LogU("Enabling UART\n");
-    int err = uart_rx_enable(uartState->device, uartState->rxbuf, UART_MAX_SERIALIZED_MESSAGE_LENGTH, UART_TIMEOUT);
+    int err = uart_rx_enable(uartState->device, uartState->rxbuf, UART_MAX_SERIALIZED_MESSAGE_LENGTH, UART_BRIDGE_TIMEOUT);
     if (err != 0) {
         LogS("Failed to enable UART RX because %d\n", err);
     }
@@ -91,7 +91,7 @@ void UartLink_LockBusy(uart_link_t *uartState) {
 
 
 int UartLink_Send(uart_link_t *uartState, uint8_t* data, uint16_t len) {
-    return uart_tx(uartState->device, data, len, UART_TIMEOUT);
+    return uart_tx(uartState->device, data, len, UART_BRIDGE_TIMEOUT);
 }
 
 

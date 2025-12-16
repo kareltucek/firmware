@@ -81,7 +81,7 @@ static status_t tx(uint8_t i2cAddress)
 {
     if (SLAVE_PROTOCOL_OVER_UART) {
         int err = Uart_SendModuleMessage(&txMessage);
-        return err == 0 ? kStatus_Success : kStatus_Fail;
+        return err == 0 ? kStatus_Uhk_IdleCycle : kStatus_Fail;
     } else {
         return I2cAsyncWriteMessage(i2cAddress, &txMessage);
     }
@@ -238,9 +238,6 @@ slave_result_t UhkModuleSlaveDriver_Update(uint8_t uhkModuleDriverId)
     uhk_module_phase_t *uhkModulePhase = &uhkModuleState->phase;
     uint8_t i2cAddress = uhkModuleState->firmwareI2cAddress;
     i2c_message_t *rxMessage = &uhkModuleState->rxMessage;
-
-    uint8_t phase = *uhkModulePhase;
-    printk("phase %d\n", phase);
 
     switch (*uhkModulePhase) {
 
@@ -509,12 +506,12 @@ slave_result_t UhkModuleSlaveDriver_Update(uint8_t uhkModuleDriverId)
                 *uhkModulePhase = UhkModulePhase_ResetTrackpoint;
             } else if (SLAVE_PROTOCOL_OVER_UART) {
                 // When in uart,
-                rxMessage->crc = 0; // invalidate the message, and so trigger re-requesting keystates on uart driver timeout
                 // act as if we have scheduled a transfer. The module will send further updates when it has any.
                 res.status = kStatus_Success;
                 res.hold = false;
                 *uhkModulePhase = UhkModulePhase_ProcessKeystates;
             } else {
+                // We are i2c and have nothing to do, so poll key states
                 res.status = kStatus_Uhk_IdleCycle;
                 res.hold = false;
                 *uhkModulePhase = UhkModulePhase_RequestKeyStates;
