@@ -3,8 +3,10 @@
 #include "i2c_addresses.h"
 #include "i2c.h"
 #include "atomicity.h"
+#include "keyboard/i2c_compatibility.h"
 #include "pin_wiring.h"
 #include "device.h"
+#include "slave_protocol.h"
 
 #ifdef __ZEPHYR__
 #include "messenger.h"
@@ -238,6 +240,7 @@ slave_result_t UhkModuleSlaveDriver_Update(uint8_t uhkModuleDriverId)
     i2c_message_t *rxMessage = &uhkModuleState->rxMessage;
 
     uint8_t phase = *uhkModulePhase;
+    printk("phase %d\n", phase);
 
     switch (*uhkModulePhase) {
 
@@ -478,17 +481,45 @@ slave_result_t UhkModuleSlaveDriver_Update(uint8_t uhkModuleDriverId)
             res.hold = true;
             *uhkModulePhase = UhkModulePhase_ProcessKeystates;
             break;
-        case UhkModulePhase_ProcessKeystates:
-            if (validate(rxMessage)) {
+        case UhkModulePhase_ProcessKeystates: {
+            bool isValid = validate(rxMessage);
+            if (isValid) {
                 if (DEVICE_ID == DeviceId_Uhk80_Left) {
                     forwardKeystates(uhkModuleDriverId, uhkModuleState, rxMessage);
                 } else {
                     UhkModuleSlaveDriver_ProcessKeystates(uhkModuleDriverId, uhkModuleState, rxMessage->data);
                 }
             }
-            res.status = kStatus_Uhk_IdleCycle;
-            res.hold = true;
-            *uhkModulePhase = UhkModulePhase_SetTestLed;
+            if (!isValid) {
+                res.status = kStatus_Uhk_IdleCycle;
+                res.hold = false;
+                *uhkModulePhase = UhkModulePhase_RequestKeyStates;
+            }
+            else if (uhkModuleSourceVars->isTestLedOn != uhkModuleTargetVars->isTestLedOn) {
+                res.status = kStatus_Uhk_IdleCycle;
+                res.hold = true;
+                *uhkModulePhase = UhkModulePhase_SetTestLed;
+            } else if (uhkModuleSourceVars->ledPwmBrightness != uhkModuleTargetVars->ledPwmBrightness) {
+                res.status = kStatus_Uhk_IdleCycle;
+                res.hold = true;
+                *uhkModulePhase = UhkModulePhase_SetLedPwmBrightness;
+            } else if (shouldSendTrackpointCommand && uhkModuleDriverId == UhkModuleDriverId_RightModule) {
+                res.status = kStatus_Uhk_IdleCycle;
+                res.hold = true;
+                *uhkModulePhase = UhkModulePhase_ResetTrackpoint;
+            } else if (SLAVE_PROTOCOL_OVER_UART) {
+                // When in uart,
+                rxMessage->crc = 0; // invalidate the message, and so trigger re-requesting keystates on uart driver timeout
+                // act as if we have scheduled a transfer. The module will send further updates when it has any.
+                res.status = kStatus_Success;
+                res.hold = false;
+                *uhkModulePhase = UhkModulePhase_ProcessKeystates;
+            } else {
+                res.status = kStatus_Uhk_IdleCycle;
+                res.hold = false;
+                *uhkModulePhase = UhkModulePhase_RequestKeyStates;
+            }
+        }
             break;
 
         // Set test LED
