@@ -23,17 +23,18 @@ static uint8_t uartRxBuffer[UART_BUFF_SIZE];
 static uint16_t uartRxReadCount = 0;
 
 static bool hasRawIncomingMessage = false;
-static bool updateKeys = false;
+static bool updateKeysNow = false;
+static uint16_t updateKeysTimer = 0;
 
 static uart_parser_t uartParser;
 
-
-static inline void handleSlaveProtocolMessage(uint8_t* data) {
+static inline void handleSlaveProtocolMessage(const uint8_t* data) {
     TxMessage.length = 0;
 
     // they read the rx buffer and write the tx buffer
     if (IsI2cRxTransaction(data[0])) {
         SlaveRxHandler(data);
+        return;
     } else {
         SlaveTxHandler(data);
     }
@@ -44,6 +45,8 @@ static inline void handleSlaveProtocolMessage(uint8_t* data) {
     UartParser_FinalizeMessage(&uartParser);
 
     LPUART_WriteBlocking(LPUART0, uartParser.txBuffer, uartParser.txPosition);
+
+    updateKeysTimer = SlaveProtocol_FreeUpdateAllowed ? UART_MODULE_PING_INTERVAL_MS : 0;
 }
 
 static void processRxBuffer(void) {
@@ -68,13 +71,18 @@ void ModuleUart_Loop(void)
         startListening();
     }
 
-    if (updateKeys) {
-        updateKeys = false;
-        uint8_t keyStatesCommand = SlaveCommand_RequestKeyStates;
+    if (updateKeysNow) {
+        updateKeysNow = false;
+        const uint8_t keyStatesCommand = SlaveCommand_RequestKeyStates;
         handleSlaveProtocolMessage(&keyStatesCommand);
     }
 }
 
+void ModuleUart_OnTime(void) {
+    if (updateKeysTimer > 0 && updateKeysTimer-- == 1 && SlaveProtocol_FreeUpdateAllowed) {
+        updateKeysNow = true;
+    }
+}
 
 
 static void processDeserializedRxData(void *state, uart_control_t messageKind, const uint8_t* data, uint16_t len) {
@@ -133,7 +141,7 @@ static void initUartParser(void) {
 
 void ModuleUart_RequestKeyStatesUpdate(void) {
     if (SlaveProtocol_FreeUpdateAllowed) {
-        // updateKeys = true;
+        updateKeysTimer = true;
     }
 }
 
