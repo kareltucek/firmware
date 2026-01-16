@@ -146,8 +146,17 @@ static const uint8_t segmentLedIds[maxSegmentChars][ledCountPerChar] = {
 
 void LedDisplay_SetText(uint8_t length, const char* text)
 {
+    // Use override text if segment display override is enabled
+    const char* effectiveText = text;
+    uint8_t effectiveLength = length;
+
+    if (LedOverride.uhk60Leds.segmentDisplay) {
+        effectiveText = (const char*)Uhk60LedState.segmentDisplayText;
+        effectiveLength = UHK60_SEGMENT_DISPLAY_LENGTH;
+    }
+
     for (uint8_t charId=0; charId<LED_DISPLAY_KEYMAP_NAME_LENGTH; charId++) {
-        char keymapChar = charId < length ? text[charId] : ' ';
+        char keymapChar = charId < effectiveLength ? effectiveText[charId] : ' ';
         uint16_t charBits = letterToSegmentMap[keymapChar - ' '];
         for (uint8_t ledId=0; ledId<ledCountPerChar; ledId++) {
             uint8_t ledIdx = segmentLedIds[charId][ledId];
@@ -161,12 +170,31 @@ void LedDisplay_SetText(uint8_t length, const char* text)
 void LedDisplay_SetLayer(layer_id_t layerId)
 {
 #ifndef __ZEPHYR__
-    // layerLedIds is defined for just three values atm
-    for (uint8_t i=1; i<4; i++) {
-        LedDriverValues[LedDriverId_Left][layerLedIds[i-1]] = layerId == i ? DisplayBrightness : 0;
+    // Layer LED indices: 0=Mod, 1=Fn, 2=Mouse
+    bool layerStates[3] = {false, false, false};
+
+    // Determine firmware-intended states
+    if (layerId >= 1 && layerId <= 3) {
+        layerStates[layerId - 1] = true;
     }
     if (LayerId_Fn2 <= layerId && layerId <= LayerId_Fn5) {
-        LedDriverValues[LedDriverId_Left][layerLedIds[LayerId_Fn-1]] = DisplayBrightness;
+        layerStates[LayerId_Fn - 1] = true;
+    }
+
+    // Apply overrides if set
+    if (LedOverride.uhk60Leds.mod) {
+        layerStates[0] = Uhk60LedState.ledStates.mod;
+    }
+    if (LedOverride.uhk60Leds.fn) {
+        layerStates[1] = Uhk60LedState.ledStates.fn;
+    }
+    if (LedOverride.uhk60Leds.mouse) {
+        layerStates[2] = Uhk60LedState.ledStates.mouse;
+    }
+
+    // Set the actual LED values
+    for (uint8_t i = 0; i < 3; i++) {
+        LedDriverValues[LedDriverId_Left][layerLedIds[i]] = layerStates[i] ? DisplayBrightness : 0;
     }
 #endif
 }
@@ -184,7 +212,30 @@ void LedDisplay_SetIcon(led_display_icon_t icon, bool isEnabled)
 {
     ledIconStates[icon] = isEnabled;
 #ifndef __ZEPHYR__
-    LedDriverValues[LedDriverId_Left][iconLedIds[icon]] = isEnabled ? DisplayBrightness : 0;
+    bool effectiveState = isEnabled;
+
+    // Check if this icon is overridden and use user-set value instead
+    switch (icon) {
+        case LedDisplayIcon_CapsLock:
+            if (LedOverride.uhk60Leds.capsLock) {
+                effectiveState = Uhk60LedState.ledStates.capsLock;
+            }
+            break;
+        case LedDisplayIcon_Agent:
+            if (LedOverride.uhk60Leds.agent) {
+                effectiveState = Uhk60LedState.ledStates.agent;
+            }
+            break;
+        case LedDisplayIcon_Adaptive:
+            if (LedOverride.uhk60Leds.adaptive) {
+                effectiveState = Uhk60LedState.ledStates.adaptive;
+            }
+            break;
+        default:
+            break;
+    }
+
+    LedDriverValues[LedDriverId_Left][iconLedIds[icon]] = effectiveState ? DisplayBrightness : 0;
 #endif
 }
 

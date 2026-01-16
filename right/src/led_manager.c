@@ -29,6 +29,7 @@ bool KeyBacklightSleepModeActive = false;
 bool DisplaySleepModeActive = false;
 
 led_override_t LedOverride = {0};
+uhk60_led_state_t Uhk60LedState = {0};
 
 uint8_t DisplayBrightness = 0xff;
 uint8_t KeyBacklightBrightness = 0xff;

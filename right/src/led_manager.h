@@ -11,6 +11,7 @@
 
     #define LED_OVERRIDE_KEY_COUNT 256
     #define LED_OVERRIDE_KEY_BYTES (LED_OVERRIDE_KEY_COUNT / 8)
+    #define UHK60_SEGMENT_DISPLAY_LENGTH 3
 
 // Typedefs:
 
@@ -31,9 +32,15 @@
         uint8_t keyBacklightOverrides[LED_OVERRIDE_KEY_BYTES];  // 32 bytes
     } ATTR_PACKED led_override_t;
 
+    typedef struct {
+        led_override_uhk60_t ledStates;                         // 1 byte: on/off state for each LED
+        uint8_t segmentDisplayText[UHK60_SEGMENT_DISPLAY_LENGTH]; // 3 bytes: ASCII characters
+    } ATTR_PACKED uhk60_led_state_t;
+
 // Variables:
 
     extern led_override_t LedOverride;
+    extern uhk60_led_state_t Uhk60LedState;
 
     extern uint8_t DisplayBrightness;
     extern uint8_t KeyBacklightBrightness;
