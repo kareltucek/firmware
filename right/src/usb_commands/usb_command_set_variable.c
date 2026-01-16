@@ -1,3 +1,4 @@
+#include <string.h>
 #include "keymap.h"
 #include "led_manager.h"
 #include "usb_protocol_handler.h"
@@ -15,6 +16,7 @@
 #ifdef __ZEPHYR__
 #include "proxy_log_backend.h"
 #include "state_sync.h"
+#include "keyboard/oled/oled.h"
 #endif
 
 void UsbCommand_SetVariable(const uint8_t *GenericHidOutBuffer, uint8_t *GenericHidInBuffer)
@@ -65,6 +67,12 @@ void UsbCommand_SetVariable(const uint8_t *GenericHidOutBuffer, uint8_t *Generic
                 }
 
             #endif
+            break;
+        case UsbVariable_LedOverride:
+            memcpy((uint8_t*)&LedOverride, GenericHidOutBuffer + 2, sizeof(led_override_t));
+#if DEVICE_HAS_OLED
+            OledOverrideMode = LedOverride.oledOverride;
+#endif
             break;
         default:
             break;

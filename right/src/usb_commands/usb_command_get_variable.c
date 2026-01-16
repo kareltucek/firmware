@@ -1,5 +1,7 @@
+#include <string.h>
 #include "usb_protocol_handler.h"
 #include "usb_commands/usb_command_get_variable.h"
+#include "led_manager.h"
 #include "key_matrix.h"
 #include "test_switches.h"
 #include "usb_report_updater.h"
@@ -60,6 +62,9 @@ void UsbCommand_GetVariable(const uint8_t *GenericHidOutBuffer, uint8_t *Generic
             #ifdef __ZEPHYR__
                 SetUsbTxBufferUint8(1, StateSync_VersionCheckEnabled);
             #endif
+            break;
+        case UsbVariable_LedOverride:
+            memcpy(GenericHidInBuffer + 1, (uint8_t*)&LedOverride, sizeof(led_override_t));
             break;
     }
 }
