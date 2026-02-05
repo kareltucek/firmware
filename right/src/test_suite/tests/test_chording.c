@@ -82,9 +82,9 @@ static const test_action_t test_chording_disabled[] = {
 };
 
 static const test_t chording_tests[] = {
-    { .name = "basic",          .actions = test_chording_basic },
-    { .name = "layer_priority", .actions = test_chording_layer_priority },
-    { .name = "disabled",       .actions = test_chording_disabled },
+    { .name = "basic",          .actions = test_chording_basic, .envFlags = TEST_ENV_POSTPONING },
+    { .name = "layer_priority", .actions = test_chording_layer_priority, .envFlags = TEST_ENV_POSTPONING },
+    { .name = "disabled",       .actions = test_chording_disabled, .envFlags = TEST_ENV_POSTPONING },
 };
 
 const test_module_t TestModule_Chording = {

@@ -370,23 +370,23 @@ static const test_action_t test_ifgesture_cancelin[] = {
 
 static const test_t ifshortcut_gesture_tests[] = {
     // ifShortcut tests
-    { .name = "ifshortcut_basic",      .actions = test_ifshortcut_basic },
-    { .name = "ifshortcut_no_match",   .actions = test_ifshortcut_no_match },
-    { .name = "ifnotshortcut",         .actions = test_ifnotshortcut },
-    { .name = "ifshortcut_noconsume",  .actions = test_ifshortcut_noconsume },
-    { .name = "ifshortcut_anyorder",   .actions = test_ifshortcut_anyorder },
-    { .name = "ifshortcut_orgate",     .actions = test_ifshortcut_orgate },
-    { .name = "ifshortcut_timeout",    .actions = test_ifshortcut_timeout },
-    { .name = "ifshortcut_transitive", .actions = test_ifshortcut_transitive },
+    { .name = "ifshortcut_basic",      .actions = test_ifshortcut_basic, .envFlags = TEST_ENV_POSTPONING },
+    { .name = "ifshortcut_no_match",   .actions = test_ifshortcut_no_match, .envFlags = TEST_ENV_POSTPONING },
+    { .name = "ifnotshortcut",         .actions = test_ifnotshortcut, .envFlags = TEST_ENV_POSTPONING },
+    { .name = "ifshortcut_noconsume",  .actions = test_ifshortcut_noconsume, .envFlags = TEST_ENV_POSTPONING },
+    { .name = "ifshortcut_anyorder",   .actions = test_ifshortcut_anyorder, .envFlags = TEST_ENV_POSTPONING },
+    { .name = "ifshortcut_orgate",     .actions = test_ifshortcut_orgate, .envFlags = TEST_ENV_POSTPONING },
+    { .name = "ifshortcut_timeout",    .actions = test_ifshortcut_timeout, .envFlags = TEST_ENV_POSTPONING },
+    { .name = "ifshortcut_transitive", .actions = test_ifshortcut_transitive, .envFlags = TEST_ENV_POSTPONING },
     // ifGesture tests
-    { .name = "ifgesture_basic",       .actions = test_ifgesture_basic },
-    { .name = "ifgesture_doubletap",   .actions = test_ifgesture_doubletap },
-    { .name = "ifnotgesture",          .actions = test_ifnotgesture },
-    { .name = "ifgesture_noconsume",   .actions = test_ifgesture_noconsume },
-    { .name = "ifgesture_anyorder",    .actions = test_ifgesture_anyorder },
-    { .name = "ifgesture_orgate",      .actions = test_ifgesture_orgate },
-    { .name = "ifgesture_timeout",     .actions = test_ifgesture_timeout },
-    { .name = "ifgesture_cancelin",    .actions = test_ifgesture_cancelin },
+    { .name = "ifgesture_basic",       .actions = test_ifgesture_basic, .envFlags = TEST_ENV_POSTPONING },
+    { .name = "ifgesture_doubletap",   .actions = test_ifgesture_doubletap, .envFlags = TEST_ENV_POSTPONING },
+    { .name = "ifnotgesture",          .actions = test_ifnotgesture, .envFlags = TEST_ENV_POSTPONING },
+    { .name = "ifgesture_noconsume",   .actions = test_ifgesture_noconsume, .envFlags = TEST_ENV_POSTPONING },
+    { .name = "ifgesture_anyorder",    .actions = test_ifgesture_anyorder, .envFlags = TEST_ENV_POSTPONING },
+    { .name = "ifgesture_orgate",      .actions = test_ifgesture_orgate, .envFlags = TEST_ENV_POSTPONING },
+    { .name = "ifgesture_timeout",     .actions = test_ifgesture_timeout, .envFlags = TEST_ENV_POSTPONING },
+    { .name = "ifgesture_cancelin",    .actions = test_ifgesture_cancelin, .envFlags = 0 },  // Uses TEST_CHECK_NOW
 };
 
 const test_module_t TestModule_IfShortcutGesture = {

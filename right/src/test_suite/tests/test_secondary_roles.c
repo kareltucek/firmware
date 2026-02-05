@@ -74,8 +74,8 @@ static const test_action_t test_secondary_role_negative_safety[] = {
 };
 
 static const test_t secondary_role_tests[] = {
-    { .name = "positive_safety_margin", .actions = test_secondary_role_positive_safety },
-    { .name = "negative_safety_margin", .actions = test_secondary_role_negative_safety },
+    { .name = "positive_safety_margin", .actions = test_secondary_role_positive_safety, .envFlags = TEST_ENV_POSTPONING },
+    { .name = "negative_safety_margin", .actions = test_secondary_role_negative_safety, .envFlags = TEST_ENV_POSTPONING },
 };
 
 const test_module_t TestModule_SecondaryRoles = {
