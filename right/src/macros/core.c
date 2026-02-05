@@ -421,7 +421,7 @@ macro_result_t Macros_ForkMacro(uint8_t macroIndex)
     return MacroResult_Finished;
 }
 
-uint8_t initMacro(uint8_t index, key_state_t *keyState, uint16_t argumentOffset, uint8_t timestamp, uint8_t parentMacroSlot, const char *inlineText)
+uint8_t initMacro(uint8_t index, key_state_t *keyState, uint16_t argumentOffset, uint8_t timestamp, uint8_t parentMacroSlot, const inline_macro_t *inlineMacro)
 {
     if (!macroIsValid(index) || !findFreeStateSlot() || !findFreeScopeStateSlot())  {
        return 255;
@@ -439,19 +439,21 @@ uint8_t initMacro(uint8_t index, key_state_t *keyState, uint16_t argumentOffset,
     S->ms.currentMacroArgumentOffset = argumentOffset;
     S->ms.parentMacroSlot = parentMacroSlot;
 
-    // If inline text is provided, set up the action before resetToAddressZero
-    if (inlineText != NULL) {
+    // If inline macro is provided, set up the action before resetToAddressZero
+    if (inlineMacro != NULL) {
+        const char *text = inlineMacro->text;
         uint16_t textLen = 0;
-        while (inlineText[textLen] != '\0') textLen++;
+        while (text[textLen] != '\0') textLen++;
 
         S->ms.currentMacroAction = (macro_action_t){
             .type = MacroActionType_Command,
             .cmd = {
-                .text = inlineText,
+                .text = text,
                 .textLen = textLen,
-                .cmdCount = CountCommands(inlineText, textLen)
+                .cmdCount = CountCommands(text, textLen),
             }
         };
+        S->ms.currentMacroAction.inlineCmd.inlineMacro = inlineMacro;
     }
 
     //this loads the first action and resets all adresses
@@ -462,11 +464,11 @@ uint8_t initMacro(uint8_t index, key_state_t *keyState, uint16_t argumentOffset,
 
 
 //partentMacroSlot == 255 means no parent
-uint8_t Macros_StartMacro(uint8_t index, key_state_t *keyState, uint16_t argumentOffset, uint8_t timestamp, uint8_t parentMacroSlot, bool runFirstAction, const char *inlineText)
+uint8_t Macros_StartMacro(uint8_t index, key_state_t *keyState, uint16_t argumentOffset, uint8_t timestamp, uint8_t parentMacroSlot, bool runFirstAction, const inline_macro_t *inlineMacro)
 {
     macro_state_t* oldState = S;
 
-    uint8_t slotIndex = initMacro(index, keyState, argumentOffset, timestamp, parentMacroSlot, inlineText);
+    uint8_t slotIndex = initMacro(index, keyState, argumentOffset, timestamp, parentMacroSlot, inlineMacro);
 
     if (slotIndex == 255) {
         S = oldState;
@@ -490,9 +492,9 @@ uint8_t Macros_StartMacro(uint8_t index, key_state_t *keyState, uint16_t argumen
     return slotIndex;
 }
 
-uint8_t Macros_StartInlineMacro(const char *text, key_state_t *keyState, uint8_t timestamp)
+uint8_t Macros_StartInlineMacro(const inline_macro_t *macro, key_state_t *keyState, uint8_t timestamp)
 {
-    return Macros_StartMacro(MacroIndex_InlineMacro, keyState, 0, timestamp, 255, true, text);
+    return Macros_StartMacro(MacroIndex_InlineMacro, keyState, 0, timestamp, 255, true, macro);
 }
 
 void Macros_ValidateMacro(uint8_t macroIndex, uint16_t argumentOffset, uint8_t moduleId, uint8_t keyIdx, uint8_t keymapIdx, uint8_t layerIdx) {

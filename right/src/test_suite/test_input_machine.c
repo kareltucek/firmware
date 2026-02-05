@@ -225,12 +225,12 @@ void InputMachine_Tick(void) {
                 key_action_t keyAction = {
                     .type = KeyActionType_InlineMacro,
                     .inlineMacro = {
-                        .text = action->macroText
+                        .macro = action->inlineMacro
                     }
                 };
 
                 CurrentKeymap[LayerId_Base][slotId][keyId] = keyAction;
-                LOG_VERBOSE("[TEST] > SetMacro [%s] = '%s'\n", action->keyId, action->macroText);
+                LOG_VERBOSE("[TEST] > SetMacro [%s] = '%s'\n", action->keyId, action->inlineMacro->text);
                 InputMachine_ActionIndex++;
                 break;
             }
