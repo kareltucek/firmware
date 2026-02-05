@@ -1,6 +1,7 @@
 #ifndef __ZEPHYR__
 #include "fsl_common.h"
 #endif
+#include "str_utils.h"
 #include "macros/core.h"
 #include "macros/status_buffer.h"
 #include "usb_commands/usb_command_exec_macro_command.h"
@@ -14,6 +15,7 @@
 char UsbMacroCommand[USB_GENERIC_HID_OUT_BUFFER_LENGTH+1];
 uint8_t UsbMacroCommandLength = 0;
 key_state_t dummyState;
+static inline_macro_t usbInlineMacro = { .text = UsbMacroCommand, .args = NULL, .argCount = 0 };
 
 static void requestExecution(const uint8_t *GenericHidOutBuffer)
 {
@@ -42,7 +44,7 @@ static bool canExecute()
 
 void UsbMacroCommand_ExecuteSynchronously()
 {
-    Macros_StartMacro(MacroIndex_InlineMacro, &dummyState, 0, 255, MacroIndex_None, false, UsbMacroCommand);
+    Macros_StartMacro(MacroIndex_InlineMacro, &dummyState, 0, 255, MacroIndex_None, false, &usbInlineMacro);
     EventVector_Unset(EventVector_UsbMacroCommandWaitingForExecution);
 }
 

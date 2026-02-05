@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include "str_utils.h"
 
 // Helper macros for defining tests
 
@@ -34,7 +35,11 @@
 
 // SetMacro: assign an inline macro to a key
 #define TEST_SET_MACRO(key_id, macro_text) \
-    { .type = TestAction_SetMacro, .keyId = (key_id), .macroText = (macro_text) }
+    { .type = TestAction_SetMacro, .keyId = (key_id), .inlineMacro = &(const inline_macro_t){ .text = (macro_text), .args = NULL, .argCount = 0 } }
+
+// SetMacroWithArgs: assign an inline macro with arguments to a key
+#define TEST_SET_MACRO_WITH_ARGS(key_id, macro_text, args_ptr, arg_count) \
+    { .type = TestAction_SetMacro, .keyId = (key_id), .inlineMacro = &(const inline_macro_t){ .text = (macro_text), .args = (args_ptr), .argCount = (arg_count) } }
 
 // SetLayerHold: assign a layer hold action to a key
 #define TEST_SET_LAYER_HOLD(key_id, layer_id) \
@@ -84,7 +89,7 @@ typedef struct {
         uint16_t delayMs;
         const char *expectShortcuts;  // Space-separated shortcut strings
         const char *shortcutStr;      // For SetAction, SetLayerAction
-        const char *macroText;        // For SetMacro
+        const inline_macro_t *inlineMacro;  // For SetMacro
         const char *configText;       // For SetConfig
     };
 } test_action_t;

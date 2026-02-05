@@ -1021,15 +1021,32 @@ void MacroVariables_RunTests(void) {
 #endif
 }
 
+// Helper to get macro argument - checks inline args first, then config buffer
+static string_segment_t getMacroArgument(uint8_t argId) {
+    // Check for inline macro arguments first (1-indexed)
+    const inline_macro_t *inlineMacro = S->ms.currentMacroAction.inlineCmd.inlineMacro;
+    if (inlineMacro != NULL && inlineMacro->args != NULL && argId >= 1 && argId <= inlineMacro->argCount) {
+        return inlineMacro->args[argId - 1];
+    }
+
+    // Fall back to config buffer arguments
+    if (S->ms.currentMacroArgumentOffset != 0) {
+        return ParseMacroArgument(S->ms.currentMacroArgumentOffset, argId);
+    }
+
+    // Only warn for normal macros without arguments - inline macros may legitimately have no args
+    if (S->ms.currentMacroIndex != MacroIndex_InlineMacro && S->ms.currentMacroArgumentOffset == 0) {
+        Macros_ReportErrorPrintf(NULL, "Macro arguments are not set up, but $macroArg.%d is referenced!", argId);
+    }
+
+    return (string_segment_t){ .start = NULL, .end = NULL };
+}
+
 static macro_variable_t consumeArgumentAsValue(parser_context_t* ctx) {
     ConsumeUntilDot(ctx);
     uint8_t argId = Macros_ConsumeInt(ctx);
 
-    if (S->ms.currentMacroArgumentOffset == 0) {
-        Macros_ReportErrorPrintf(ctx->at, "Failed to retrieve argument %d, because this macro doesn't seem to have arguments assigned!", argId);
-    }
-
-    string_segment_t str = ParseMacroArgument(S->ms.currentMacroArgumentOffset, argId);
+    string_segment_t str = getMacroArgument(argId);
 
     if (str.start == NULL) {
         Macros_ReportErrorPrintf(ctx->at, "Failed to retrieve argument %d. Argument not found!", argId);
@@ -1050,16 +1067,12 @@ static macro_variable_t consumeArgumentAsValue(parser_context_t* ctx) {
     return res;
 }
 
+// For template expansion, we don't throw errors here - just return false if argument not found.
+// The warning for missing arguments in normal macros is handled in getMacroArgument.
 static bool expandArgumentInplace(parser_context_t* ctx, uint8_t argNumber) {
-    if (S->ms.currentMacroArgumentOffset == 0) {
-        Macros_ReportErrorPrintf(ctx->at, "Failed to retrieve argument %d, because this macro doesn't seem to have arguments assigned!", argNumber);
-    }
-
-    string_segment_t str = ParseMacroArgument(S->ms.currentMacroArgumentOffset, argNumber);
+    string_segment_t str = getMacroArgument(argNumber);
 
     if (str.start == NULL) {
-        // If this kind of substitution is not found, assume it is empty and do *not* throw an error.
-        // Macros_ReportErrorPrintf(ctx->at, "Failed to retrieve argument %d. Argument not found!", argNumber);
         return false;
     }
 

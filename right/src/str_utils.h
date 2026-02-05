@@ -52,6 +52,12 @@
         const char* end;
     } ATTR_PACKED string_segment_t;
 
+    typedef struct {
+        const char* text;
+        const string_segment_t* args;
+        uint8_t argCount;
+    } inline_macro_t;
+
 
 // Functions:
 

@@ -104,7 +104,7 @@
                 uint16_t offset;
             } ATTR_PACKED playMacro;
             struct {
-                const char* text;
+                const inline_macro_t* macro;
             } ATTR_PACKED inlineMacro;
             struct {
                 connection_action_t command;
