@@ -247,6 +247,35 @@ extern "C" void HOGP_Disable()
 {
     hogp_manager::instance().select_config(Hid_Empty);
 }
+
+extern "C" void HOGP_HealthCheck()
+{
+    auto &hm = hogp_manager::instance();
+    auto &svc = hm.main_service();
+
+    bool registered = hm.active();
+    struct bt_conn *peer = svc.peer();
+
+    if (!registered) {
+        printk("HOGP HealthCheck: GATT service NOT registered\n");
+        return;
+    }
+
+    if (!peer) {
+        printk("HOGP HealthCheck: service registered, no active peer\n");
+        return;
+    }
+
+    struct bt_conn_info info;
+    int err = bt_conn_get_info(peer, &info);
+    if (err) {
+        printk("HOGP HealthCheck: active peer has INVALID conn pointer (err %d)\n", err);
+        return;
+    }
+
+    printk("HOGP HealthCheck: OK (registered, peer connected, interval %u)\n",
+           info.le.interval);
+}
 #endif
 
 bool app_base::active() const

@@ -145,6 +145,7 @@ void keyboard_app::set_report_state(const keys_nkro_report_base<> &data)
         }
     }
     if (result != hid::result::ok) {
+        printk("keyboard_app: send_report failed\n");
         sending_sem_.release();
     }
     Trace_Printc("r1");

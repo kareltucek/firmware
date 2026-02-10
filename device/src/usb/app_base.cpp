@@ -1,4 +1,5 @@
 #include "app_base.hpp"
+#include "zephyr/sys/printk.h"
 
 void app_base::stop()
 {
@@ -16,6 +17,7 @@ void app_base::send(const std::span<const uint8_t> &buffer)
     std::copy(buffer.begin(), buffer.end(), in_buffer_.data() + sizeof(in_id_));
     auto result = send_report(in_buffer_);
     if (result != hid::result::ok) {
+        printk("app_base: send_report failed\n");
         sending_sem_.release();
     }
 }
