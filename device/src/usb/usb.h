@@ -34,6 +34,7 @@
     void HOGP_Enable(void);
     void HOGP_Disable(void);
     void HOGP_HealthCheck(void);
+    bool HOGP_HasActiveConnection(void);
     void USB_Enable(void);
     void USB_SetSerialNumber(uint32_t serialNumber);
     void USB_RemoteWakeup(void);

@@ -551,6 +551,8 @@ static void connectHid(struct bt_conn *conn, connection_id_t connectionId, conne
     LOG_INF("Established HID connection with %s", GetPeerStringByConn(conn));
     Connections_SetState(connectionId, ConnectionState_Ready);
     BtManager_StartScanningAndAdvertisingAsync(false, "connectHid");
+
+    EventScheduler_Reschedule(Timer_GetCurrentTime() + 10000, EventSchedulerEvent_KickHid, "HID health kick");
 }
 
 #define BT_UUID_NUS_VAL BT_UUID_128_ENCODE(0x6e400001, 0xb5a3, 0xf393, 0xe0a9, 0xe50e24dcca9e)
@@ -619,7 +621,9 @@ static void connected(struct bt_conn *conn, uint8_t err) {
     // Without this, linux pairing fails, because tiny 27 byte packets
     // exhaust acl buffers easily
     enableDataLengthExtension(conn);
-    requestMtuExchange(conn);
+    if (!DEBUG_STRESS_GATT) {
+        requestMtuExchange(conn);
+    }
 
     if (err) {
         LOG_WRN("Failed to connect to %s, err %u", GetPeerStringByConn(conn), err);
@@ -940,6 +944,17 @@ void BtConn_DisconnectOne(connection_id_t connectionId) {
     if (!conn) { return; }
 
     safeDisconnect(conn, BT_REASON_NOT_SELECTED);
+}
+
+void BtConn_KickHid(void) {
+    HOGP_HealthCheck();
+
+    if (!HOGP_HasActiveConnection()) {
+        LOG_ERR("BtConn_KickHid: HOGP has no active peer, disconnecting hids.\n");
+        disconnectAllHids();
+    } else {
+        LOG_WRN("BtConn_KickHid: its fine.\n");
+    }
 }
 
 static void bt_foreach_conn_cb_disconnect_unidentified(struct bt_conn *conn, void *user_data) {

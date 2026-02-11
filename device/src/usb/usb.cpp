@@ -248,6 +248,11 @@ extern "C" void HOGP_Disable()
     hogp_manager::instance().select_config(Hid_Empty);
 }
 
+extern "C" bool HOGP_HasActiveConnection()
+{
+    return hogp_manager::instance().main_service().peer() != nullptr;
+}
+
 extern "C" void HOGP_HealthCheck()
 {
     auto &hm = hogp_manager::instance();
