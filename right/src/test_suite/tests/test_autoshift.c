@@ -102,11 +102,11 @@ static const test_action_t test_autoshift_disabled[] = {
 };
 
 static const test_t autoshift_tests[] = {
-    { .name = "basic",         .actions = test_autoshift_basic },
-    { .name = "hold",          .actions = test_autoshift_hold },
-    { .name = "with_modifier", .actions = test_autoshift_with_modifier },
-    { .name = "number",        .actions = test_autoshift_number },
-    { .name = "disabled",      .actions = test_autoshift_disabled },
+    { .name = "basic",         .actions = test_autoshift_basic, .envFlags = TEST_ENV_POSTPONING },
+    { .name = "hold",          .actions = test_autoshift_hold, .envFlags = TEST_ENV_POSTPONING },
+    { .name = "with_modifier", .actions = test_autoshift_with_modifier, .envFlags = TEST_ENV_POSTPONING },
+    { .name = "number",        .actions = test_autoshift_number, .envFlags = TEST_ENV_POSTPONING },
+    { .name = "disabled",      .actions = test_autoshift_disabled, .envFlags = TEST_ENV_POSTPONING },
 };
 
 const test_module_t TestModule_AutoShift = {

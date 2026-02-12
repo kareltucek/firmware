@@ -43,8 +43,8 @@ static const test_action_t test_layer_hold_with_modifier[] = {
 };
 
 static const test_t layer_tests[] = {
-    { .name = "layer_hold", .actions = test_layer_hold },
-    { .name = "layer_hold_with_modifier", .actions = test_layer_hold_with_modifier },
+    { .name = "layer_hold", .actions = test_layer_hold, .envFlags = TEST_ENV_POSTPONING },
+    { .name = "layer_hold_with_modifier", .actions = test_layer_hold_with_modifier, .envFlags = TEST_ENV_POSTPONING },
 };
 
 const test_module_t TestModule_Layers = {

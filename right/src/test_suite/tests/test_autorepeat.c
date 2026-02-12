@@ -62,8 +62,8 @@ static const test_action_t test_autorepeat_with_modifier[] = {
 };
 
 static const test_t autorepeat_tests[] = {
-    { .name = "autorepeat_basic", .actions = test_autorepeat_basic },
-    { .name = "autorepeat_with_modifier", .actions = test_autorepeat_with_modifier },
+    { .name = "autorepeat_basic", .actions = test_autorepeat_basic, .envFlags = TEST_ENV_POSTPONING },
+    { .name = "autorepeat_with_modifier", .actions = test_autorepeat_with_modifier, .envFlags = TEST_ENV_POSTPONING },
 };
 
 const test_module_t TestModule_Autorepeat = {

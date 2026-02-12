@@ -36,8 +36,8 @@ static const test_action_t test_macro_with_modifier[] = {
 };
 
 static const test_t macro_tests[] = {
-    { .name = "macro_two_tapkeys", .actions = test_macro_two_tapkeys },
-    { .name = "macro_with_modifier", .actions = test_macro_with_modifier },
+    { .name = "macro_two_tapkeys", .actions = test_macro_two_tapkeys, .envFlags = TEST_ENV_POSTPONING },
+    { .name = "macro_with_modifier", .actions = test_macro_with_modifier, .envFlags = TEST_ENV_POSTPONING },
 };
 
 const test_module_t TestModule_Macros = {

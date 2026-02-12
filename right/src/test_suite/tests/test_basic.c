@@ -32,8 +32,8 @@ static const test_action_t test_two_keys[] = {
 };
 
 static const test_t basic_tests[] = {
-    { .name = "basic_keypress", .actions = test_basic_keypress },
-    { .name = "two_keys", .actions = test_two_keys },
+    { .name = "basic_keypress", .actions = test_basic_keypress, .envFlags = TEST_ENV_POSTPONING },
+    { .name = "two_keys", .actions = test_two_keys, .envFlags = TEST_ENV_POSTPONING },
 };
 
 const test_module_t TestModule_Basic = {

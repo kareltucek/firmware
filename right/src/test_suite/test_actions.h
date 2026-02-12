@@ -4,6 +4,9 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+// Environment flags for tests
+#define TEST_ENV_POSTPONING 0x01
+
 // Helper macros for defining tests
 
 #define TEST_PRESS______(key_id) \
@@ -94,6 +97,7 @@ typedef struct {
 typedef struct {
     const char *name;
     const test_action_t *actions;
+    uint8_t envFlags;  // Bitmask of TEST_ENV_* flags
 } test_t;
 
 #endif

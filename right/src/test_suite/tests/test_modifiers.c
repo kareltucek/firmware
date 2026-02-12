@@ -16,7 +16,7 @@ static const test_action_t test_modifier_keystroke[] = {
 };
 
 static const test_t modifier_tests[] = {
-    { .name = "modifier_keystroke", .actions = test_modifier_keystroke },
+    { .name = "modifier_keystroke", .actions = test_modifier_keystroke, .envFlags = TEST_ENV_POSTPONING },
 };
 
 const test_module_t TestModule_Modifiers = {

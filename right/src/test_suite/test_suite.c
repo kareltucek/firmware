@@ -38,33 +38,172 @@ static bool singleTestMode = false;
 static bool isRerunning = false;
 static uint16_t rerunModuleIndex = 0;
 static uint16_t rerunTestIndex = 0;
+static uint8_t rerunEnvPass = 0;
 
 // Inter-test delay state
 static bool inInterTestDelay = false;
 static uint32_t interTestDelayStart = 0;
 
+// Environment pass tracking
+// Pass 0 = no environment, Pass 1+ = specific environments
+static uint8_t currentEnvPass = 0;
+#define ENV_PASS_NONE 0
+#define ENV_PASS_POSTPONING 1
+#define ENV_PASS_COUNT 2  // Total number of passes (none + postponing)
+
+// Test phases within an environment pass
+typedef enum {
+    TestPhase_Prologue,
+    TestPhase_Main,
+    TestPhase_Epilogue,
+} test_phase_t;
+
+static test_phase_t currentPhase = TestPhase_Main;
+
+// Postponing environment prologue: set up postpone key and press it
+static const test_action_t envPostponingPrologue[] = {
+    TEST_SET_MACRO("y", "postponeKeys delayUntilRelease\n"),
+    TEST_PRESS______("y"),
+    TEST_DELAY__(20),
+    TEST_END()
+};
+
+// Postponing environment epilogue: verify postponing works then release
+static const test_action_t envPostponingEpilogue[] = {
+    TEST_SET_ACTION("m", "m"),
+    TEST_PRESS______("m"),
+    TEST_DELAY__(20),
+    TEST_CHECK_NOW(""),           // Verify evaluation is postponed
+    TEST_EXPECT__________("m"),   // Will appear after postpone key released
+    TEST_RELEASE__U("m"),
+    TEST_DELAY__(20),
+    TEST_RELEASE__U("y"),
+    TEST_DELAY__(50),
+    TEST_EXPECT__________(""),
+    TEST_END()
+};
+
 static const test_t* getCurrentTest(void) {
     return &AllTestModules[currentModuleIndex]->tests[currentTestIndex];
 }
 
-static bool advanceToNextTest(void) {
-    currentTestIndex++;
-    if (currentTestIndex >= AllTestModules[currentModuleIndex]->testCount) {
-        currentModuleIndex++;
-        currentTestIndex = 0;
+// Check if test should run in current environment pass
+static bool testMatchesEnvPass(const test_t *test, uint8_t envPass) {
+    if (envPass == ENV_PASS_NONE) {
+        return true;  // All tests run in pass 0
     }
-    return currentModuleIndex < AllTestModulesCount;
+    if (envPass == ENV_PASS_POSTPONING) {
+        return (test->envFlags & TEST_ENV_POSTPONING) != 0;
+    }
+    return false;
+}
+
+// Find next test that matches the current environment pass
+static bool advanceToNextTest(void) {
+    while (true) {
+        currentTestIndex++;
+        if (currentTestIndex >= AllTestModules[currentModuleIndex]->testCount) {
+            currentModuleIndex++;
+            currentTestIndex = 0;
+        }
+        if (currentModuleIndex >= AllTestModulesCount) {
+            return false;
+        }
+        // Check if test matches current environment pass
+        const test_t *test = getCurrentTest();
+        if (testMatchesEnvPass(test, currentEnvPass)) {
+            return true;
+        }
+    }
+}
+
+// Find first test that matches the current environment pass
+static bool findFirstMatchingTest(void) {
+    currentModuleIndex = 0;
+    currentTestIndex = 0;
+    if (AllTestModulesCount == 0) {
+        return false;
+    }
+    const test_t *test = getCurrentTest();
+    if (testMatchesEnvPass(test, currentEnvPass)) {
+        return true;
+    }
+    return advanceToNextTest();
+}
+
+// Get current actions based on phase
+static const test_action_t* getCurrentActions(const test_t *test) {
+    if (currentEnvPass == ENV_PASS_NONE) {
+        return test->actions;
+    }
+    switch (currentPhase) {
+        case TestPhase_Prologue:
+            if (currentEnvPass == ENV_PASS_POSTPONING) {
+                return envPostponingPrologue;
+            }
+            break;
+        case TestPhase_Main:
+            return test->actions;
+        case TestPhase_Epilogue:
+            if (currentEnvPass == ENV_PASS_POSTPONING) {
+                return envPostponingEpilogue;
+            }
+            break;
+    }
+    return test->actions;
+}
+
+// Wrapper test for current phase
+static test_t phaseTest;
+
+static void startPhase(const test_t *test, const test_module_t *module) {
+    phaseTest.name = test->name;
+    phaseTest.actions = getCurrentActions(test);
+    phaseTest.envFlags = test->envFlags;
+
+    InputMachine_Start(&phaseTest);
+    OutputMachine_Start(&phaseTest);
+    OutputMachine_OnReportChange(ActiveUsbBasicKeyboardReport);
 }
 
 static void startTest(const test_t *test, const test_module_t *module) {
     ConfigManager_ResetConfiguration(false);
+
+    // Determine starting phase based on environment
+    if (currentEnvPass == ENV_PASS_NONE) {
+        currentPhase = TestPhase_Main;
+    } else {
+        currentPhase = TestPhase_Prologue;
+    }
+
     if (TestSuite_Verbose) {
         LogU("[TEST] ----------------------\n");
-        LogU("[TEST] Running: %s/%s\n", module->name, test->name);
+        if (currentEnvPass == ENV_PASS_NONE) {
+            LogU("[TEST] Running: %s/%s\n", module->name, test->name);
+        } else {
+            LogU("[TEST] Running: %s/%s [env:postponing]\n", module->name, test->name);
+        }
     }
-    InputMachine_Start(test);
-    OutputMachine_Start(test);
-    OutputMachine_OnReportChange(ActiveUsbBasicKeyboardReport);
+
+    startPhase(test, module);
+}
+
+// Advance to next phase, returns true if there is a next phase
+static bool advanceToNextPhase(void) {
+    if (currentEnvPass == ENV_PASS_NONE) {
+        return false;  // No phases in pass 0
+    }
+    switch (currentPhase) {
+        case TestPhase_Prologue:
+            currentPhase = TestPhase_Main;
+            return true;
+        case TestPhase_Main:
+            currentPhase = TestPhase_Epilogue;
+            return true;
+        case TestPhase_Epilogue:
+            return false;
+    }
+    return false;
 }
 
 void TestHooks_CaptureReport(const usb_basic_keyboard_report_t *report) {
@@ -72,6 +211,15 @@ void TestHooks_CaptureReport(const usb_basic_keyboard_report_t *report) {
         return;
     }
     OutputMachine_OnReportChange(report);
+}
+
+// Advance to next environment pass, returns true if there is a next pass
+static bool advanceToNextEnvPass(void) {
+    currentEnvPass++;
+    if (currentEnvPass >= ENV_PASS_COUNT) {
+        return false;
+    }
+    return findFirstMatchingTest();
 }
 
 void TestHooks_Tick(void) {
@@ -105,10 +253,11 @@ void TestHooks_Tick(void) {
         if (failed || timedOut) {
             if (isRerunning || singleTestMode) {
                 // Already rerunning with verbose (or single test mode), log final result
+                const char *envSuffix = (currentEnvPass == ENV_PASS_POSTPONING) ? " [env:postponing]" : "";
                 if (failed) {
-                    LogU("[TEST] Finished: %s/%s - FAIL\n", module->name, test->name);
+                    LogU("[TEST] Finished: %s/%s%s - FAIL\n", module->name, test->name, envSuffix);
                 } else {
-                    LogU("[TEST] Finished: %s/%s - TIMEOUT\n", module->name, test->name);
+                    LogU("[TEST] Finished: %s/%s%s - TIMEOUT\n", module->name, test->name, envSuffix);
                 }
                 LogU("[TEST] ----------------------\n");
                 failedCount++;
@@ -122,7 +271,11 @@ void TestHooks_Tick(void) {
                 // Continue from where we left off
                 currentModuleIndex = rerunModuleIndex;
                 currentTestIndex = rerunTestIndex;
+                currentEnvPass = rerunEnvPass;
                 if (advanceToNextTest()) {
+                    inInterTestDelay = true;
+                    interTestDelayStart = Timer_GetCurrentTime();
+                } else if (advanceToNextEnvPass()) {
                     inInterTestDelay = true;
                     interTestDelayStart = Timer_GetCurrentTime();
                 } else {
@@ -130,13 +283,15 @@ void TestHooks_Tick(void) {
                 }
             } else {
                 // First failure - log and save position for rerun with verbose
+                const char *envSuffix = (currentEnvPass == ENV_PASS_POSTPONING) ? " [env:postponing]" : "";
                 if (failed) {
-                    LogU("[TEST] Finished: %s/%s - FAIL (rerunning verbose)\n", module->name, test->name);
+                    LogU("[TEST] Finished: %s/%s%s - FAIL (rerunning verbose)\n", module->name, test->name, envSuffix);
                 } else {
-                    LogU("[TEST] Finished: %s/%s - TIMEOUT (rerunning verbose)\n", module->name, test->name);
+                    LogU("[TEST] Finished: %s/%s%s - TIMEOUT (rerunning verbose)\n", module->name, test->name, envSuffix);
                 }
                 rerunModuleIndex = currentModuleIndex;
                 rerunTestIndex = currentTestIndex;
+                rerunEnvPass = currentEnvPass;
                 isRerunning = true;
                 TestSuite_Verbose = true;
 
@@ -144,7 +299,16 @@ void TestHooks_Tick(void) {
                 interTestDelayStart = Timer_GetCurrentTime();
             }
         } else {
-            LogU("[TEST] Finished: %s/%s - PASS\n", module->name, test->name);
+            // Phase completed successfully - check if there are more phases
+            if (advanceToNextPhase()) {
+                // Start next phase of same test
+                startPhase(test, module);
+                return;
+            }
+
+            // All phases complete - test passed
+            const char *envSuffix = (currentEnvPass == ENV_PASS_POSTPONING) ? " [env:postponing]" : "";
+            LogU("[TEST] Finished: %s/%s%s - PASS\n", module->name, test->name, envSuffix);
             passedCount++;
             if (isRerunning) {
                 isRerunning = false;
@@ -157,6 +321,9 @@ void TestHooks_Tick(void) {
 
             // Move to next test
             if (advanceToNextTest()) {
+                inInterTestDelay = true;
+                interTestDelayStart = Timer_GetCurrentTime();
+            } else if (advanceToNextEnvPass()) {
                 inInterTestDelay = true;
                 interTestDelayStart = Timer_GetCurrentTime();
             } else {
@@ -186,12 +353,21 @@ uint8_t TestSuite_RunAll(void) {
     isRerunning = false;
     singleTestMode = false;
     TestSuite_Verbose = false;
+    currentEnvPass = ENV_PASS_NONE;
+    currentPhase = TestPhase_Main;
 
-    // Count total tests
+    // Count total tests (base + environment tests)
     totalTestCount = 0;
+    uint16_t envTestCount = 0;
     for (uint16_t i = 0; i < AllTestModulesCount; i++) {
         totalTestCount += AllTestModules[i]->testCount;
+        for (uint16_t j = 0; j < AllTestModules[i]->testCount; j++) {
+            if (AllTestModules[i]->tests[j].envFlags & TEST_ENV_POSTPONING) {
+                envTestCount++;
+            }
+        }
     }
+    totalTestCount += envTestCount;  // Add environment pass tests
 
     LogU("[TEST] Running custom unit tests...\n");
 
@@ -201,7 +377,8 @@ uint8_t TestSuite_RunAll(void) {
     BatteryCalculator_RunPercentTests();
 #endif
 
-    LogU("[TEST] Starting test suite (%d tests in %d modules)\n", totalTestCount, AllTestModulesCount);
+    LogU("[TEST] Starting test suite (%d tests in %d modules, +%d env tests)\n",
+         totalTestCount - envTestCount, AllTestModulesCount, envTestCount);
 
     if (totalTestCount == 0) {
         return 0;
@@ -242,6 +419,8 @@ uint8_t TestSuite_RunSingle(const char *moduleStart, const char *moduleEnd, cons
             isRerunning = false;
             singleTestMode = true;
             TestSuite_Verbose = true;  // Always verbose for single test
+            currentEnvPass = ENV_PASS_NONE;
+            currentPhase = TestPhase_Main;
 
             LogU("[TEST] Running single test: %s/%s\n", module->name, test->name);
             startTest(test, module);

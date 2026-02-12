@@ -46,7 +46,7 @@ static const test_action_t test_oneshot_modifiers[] = {
 };
 
 static const test_t oneshot_tests[] = {
-    { .name = "oneshot_modifiers", .actions = test_oneshot_modifiers },
+    { .name = "oneshot_modifiers", .actions = test_oneshot_modifiers, .envFlags = TEST_ENV_POSTPONING },
 };
 
 const test_module_t TestModule_Oneshot = {
