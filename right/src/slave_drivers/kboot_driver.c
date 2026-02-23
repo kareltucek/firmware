@@ -20,8 +20,10 @@ static uint8_t ackMessage[] = {0x5a, 0xa1};
 static uint8_t erasePayload[] = {0x0d, 0x00, 0x00, 0x00};
 
 #define KBOOT_WAIT_AFTER_JUMP_MS 10
-#define KBOOT_PING_TIMEOUT_MS    200
+#define KBOOT_PING_TIMEOUT_MS    20000
+#define KBOOT_DEFAULT_I2C_ADDRESS 0x10
 #define KBOOT_DATA_CHUNK_SIZE    32
+#define KBOOT_ERASE_TIMEOUT_MS   10000
 #define KBOOT_PROGRESS_LOG_BYTES 8192
 
 static status_t tx(uint8_t *buffer, uint8_t length)
@@ -60,11 +62,26 @@ static uint8_t buildFramingPacket(uint8_t packetType, const uint8_t *payload, ui
     return 6 + len;
 }
 
-static bool checkResponseStatus(void)
+static void logResponsePacket(const char *label)
 {
-    uint32_t status = rxBuffer[10] | ((uint32_t)rxBuffer[11] << 8) |
-                      ((uint32_t)rxBuffer[12] << 16) | ((uint32_t)rxBuffer[13] << 24);
-    return status == 0;
+    LogU("Kboot: %s response:", label);
+    for (uint8_t i = 0; i < KBOOT_PACKAGE_LENGTH_GENERIC_RESPONSE; i++) {
+        LogU(" %02x", rxBuffer[i]);
+    }
+    LogU("\n");
+}
+
+static uint32_t getResponseStatus(void)
+{
+    return rxBuffer[10] | ((uint32_t)rxBuffer[11] << 8) |
+           ((uint32_t)rxBuffer[12] << 16) | ((uint32_t)rxBuffer[13] << 24);
+}
+
+static void togglePingAddress(void)
+{
+    KbootDriverState.i2cAddress = KbootDriverState.i2cAddress == I2C_ADDRESS_RIGHT_MODULE_BOOTLOADER
+        ? KBOOT_DEFAULT_I2C_ADDRESS
+        : I2C_ADDRESS_RIGHT_MODULE_BOOTLOADER;
 }
 
 static void abortFlash(const char *reason)
@@ -158,8 +175,9 @@ slave_result_t KbootSlaveDriver_Update(uint8_t kbootInstanceId)
                     if (elapsedMs() < KBOOT_WAIT_AFTER_JUMP_MS) {
                         break;
                     }
-                    LogU("Kboot: Wait done (%dms), pinging bootloader at 0x%02x\n",
-                         KBOOT_WAIT_AFTER_JUMP_MS, KbootDriverState.i2cAddress);
+                    LogU("Kboot: Wait done (%dms), pinging bootloader at 0x%02x/0x%02x\n",
+                         KBOOT_WAIT_AFTER_JUMP_MS, I2C_ADDRESS_RIGHT_MODULE_BOOTLOADER,
+                         KBOOT_DEFAULT_I2C_ADDRESS);
                     KbootDriverState.phase = KbootFlashPhase_SendPing;
                     break;
                 case KbootFlashPhase_SendPing:
@@ -176,6 +194,7 @@ slave_result_t KbootSlaveDriver_Update(uint8_t kbootInstanceId)
                         KbootDriverState.command = KbootCommand_Idle;
                         break;
                     } else {
+                        togglePingAddress();
                         KbootDriverState.phase = KbootFlashPhase_SendPing;
                     }
                     res.status = kStatus_Uhk_IdleCycle;
@@ -188,7 +207,8 @@ slave_result_t KbootSlaveDriver_Update(uint8_t kbootInstanceId)
                 case KbootFlashPhase_CheckPingResponseStatus: {
                     KbootDriverState.status = Slaves[SlaveId_KbootDriver].previousStatus;
                     if (KbootDriverState.status == kStatus_Success) {
-                        LogU("Kboot: Bootloader ping OK! (%dms after jump)\n", elapsedMs());
+                        LogU("Kboot: Bootloader ping OK at 0x%02x (%dms after jump)\n",
+                             KbootDriverState.i2cAddress, elapsedMs());
                         ModuleFlashState = ModuleFlashState_Erasing;
                         KbootDriverState.phase = KbootFlashPhase_SendEraseCommand;
                     } else if (elapsedMs() > KBOOT_PING_TIMEOUT_MS) {
@@ -197,6 +217,7 @@ slave_result_t KbootSlaveDriver_Update(uint8_t kbootInstanceId)
                         KbootDriverState.command = KbootCommand_Idle;
                         break;
                     } else {
+                        togglePingAddress();
                         KbootDriverState.phase = KbootFlashPhase_SendPing;
                     }
                     res.status = kStatus_Uhk_IdleCycle;
@@ -219,8 +240,22 @@ slave_result_t KbootSlaveDriver_Update(uint8_t kbootInstanceId)
                     res.status = rx(KBOOT_PACKAGE_LENGTH_GENERIC_RESPONSE);
                     KbootDriverState.phase = KbootFlashPhase_SendEraseResponseAck;
                     break;
-                case KbootFlashPhase_SendEraseResponseAck:
-                    if (!checkResponseStatus()) {
+                case KbootFlashPhase_SendEraseResponseAck: {
+                    if (rxBuffer[0] != 0x5a || rxBuffer[1] != 0xa4) {
+                        if (elapsedMs() > KBOOT_ERASE_TIMEOUT_MS) {
+                            logResponsePacket("Erase(timeout)");
+                            abortFlash("Erase response timeout");
+                            break;
+                        }
+                        KbootDriverState.phase = KbootFlashPhase_ReceiveEraseResponse;
+                        res.status = kStatus_Uhk_IdleCycle;
+                        res.hold = true;
+                        break;
+                    }
+                    logResponsePacket("Erase");
+                    uint32_t status = getResponseStatus();
+                    if (status != 0) {
+                        LogU("Kboot: Erase failed (status=0x%x)\n", status);
                         abortFlash("Erase failed");
                         break;
                     }
@@ -229,6 +264,7 @@ slave_result_t KbootSlaveDriver_Update(uint8_t kbootInstanceId)
                     KbootDriverState.firmwareOffset = 0;
                     KbootDriverState.phase = KbootFlashPhase_SendWriteCommand;
                     break;
+                }
 
                 // WriteMemory command phases
                 case KbootFlashPhase_SendWriteCommand: {
@@ -259,8 +295,18 @@ slave_result_t KbootSlaveDriver_Update(uint8_t kbootInstanceId)
                     res.status = rx(KBOOT_PACKAGE_LENGTH_GENERIC_RESPONSE);
                     KbootDriverState.phase = KbootFlashPhase_SendWriteResponseAck;
                     break;
-                case KbootFlashPhase_SendWriteResponseAck:
-                    if (!checkResponseStatus()) {
+                case KbootFlashPhase_SendWriteResponseAck: {
+                    if (rxBuffer[0] != 0x5a || rxBuffer[1] != 0xa4) {
+                        KbootDriverState.phase = KbootFlashPhase_ReceiveWriteResponse;
+                        res.status = kStatus_Uhk_IdleCycle;
+                        res.hold = true;
+                        break;
+                    }
+                    logResponsePacket("WriteMemory");
+                    uint32_t status = getResponseStatus();
+                    if (status != 0) {
+                        LogU("Kboot: WriteMemory rejected (status=0x%x, addr=0x0, size=%u)\n",
+                             status, KbootDriverState.firmwareSize);
                         abortFlash("WriteMemory command rejected");
                         break;
                     }
@@ -269,6 +315,7 @@ slave_result_t KbootSlaveDriver_Update(uint8_t kbootInstanceId)
                     LogU("Kboot: Writing %u bytes...\n", KbootDriverState.firmwareSize);
                     KbootDriverState.phase = KbootFlashPhase_SendDataChunk;
                     break;
+                }
 
                 // Data chunk loop
                 case KbootFlashPhase_SendDataChunk: {
@@ -302,8 +349,18 @@ slave_result_t KbootSlaveDriver_Update(uint8_t kbootInstanceId)
                     res.status = rx(KBOOT_PACKAGE_LENGTH_GENERIC_RESPONSE);
                     KbootDriverState.phase = KbootFlashPhase_SendFinalResponseAck;
                     break;
-                case KbootFlashPhase_SendFinalResponseAck:
-                    if (!checkResponseStatus()) {
+                case KbootFlashPhase_SendFinalResponseAck: {
+                    if (rxBuffer[0] != 0x5a || rxBuffer[1] != 0xa4) {
+                        KbootDriverState.phase = KbootFlashPhase_ReceiveFinalResponse;
+                        res.status = kStatus_Uhk_IdleCycle;
+                        res.hold = true;
+                        break;
+                    }
+                    logResponsePacket("FinalWrite");
+                    uint32_t status = getResponseStatus();
+                    if (status != 0) {
+                        LogU("Kboot: WriteMemory data failed (status=0x%x, offset=%u/%u)\n",
+                             status, KbootDriverState.firmwareOffset, KbootDriverState.firmwareSize);
                         abortFlash("WriteMemory data transfer failed");
                         break;
                     }
@@ -311,6 +368,7 @@ slave_result_t KbootSlaveDriver_Update(uint8_t kbootInstanceId)
                     LogU("Kboot: Write complete, resetting module\n");
                     KbootDriverState.phase = KbootFlashPhase_SendReset;
                     break;
+                }
 
                 // Reset phases
                 case KbootFlashPhase_SendReset:
