@@ -49,6 +49,23 @@
         KbootFlashPhase_CheckPingStatus,
         KbootFlashPhase_ReceivePingResponse,
         KbootFlashPhase_CheckPingResponseStatus,
+        // Erase
+        KbootFlashPhase_SendEraseCommand,
+        KbootFlashPhase_ReceiveEraseAck,
+        KbootFlashPhase_ReceiveEraseResponse,
+        KbootFlashPhase_SendEraseResponseAck,
+        // WriteMemory command
+        KbootFlashPhase_SendWriteCommand,
+        KbootFlashPhase_ReceiveWriteAck,
+        KbootFlashPhase_ReceiveWriteResponse,
+        KbootFlashPhase_SendWriteResponseAck,
+        // Data phase (loops)
+        KbootFlashPhase_SendDataChunk,
+        KbootFlashPhase_ReceiveDataChunkAck,
+        // Final response after all data
+        KbootFlashPhase_ReceiveFinalResponse,
+        KbootFlashPhase_SendFinalResponseAck,
+        // Reset
         KbootFlashPhase_SendReset,
         KbootFlashPhase_ReceiveResetAck,
         KbootFlashPhase_ReceiveResetGenericResponse,
@@ -61,6 +78,9 @@
         uint8_t phase;
         uint32_t status;
         uint32_t startTime;
+        const uint8_t *firmwareData;
+        uint32_t firmwareSize;
+        uint32_t firmwareOffset;
     } kboot_driver_state_t;
 
 // Variables:
