@@ -401,7 +401,7 @@ void ConsumeAnyToken(parser_context_t* ctx)
 struct command_entry* ConsumeGperfToken(parser_context_t* ctx)
 {
     const char* start = ctx->at;
-    while (*ctx->at > 32 && ctx->at < ctx->end) {
+    while (isIdentifierChar(*ctx->at) && ctx->at < ctx->end) {
         ctx->at++;
     }
     struct command_entry* result = command_lookup(start, ctx->at - start);
