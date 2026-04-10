@@ -12,6 +12,7 @@ extern "C" {
 #include "key_states.h"
 #include "logger.h"
 #include "macro_events.h"
+#include "timer.h"
 #include "usb_report_updater.h"
 }
 #include "command_app.hpp"
@@ -30,6 +31,44 @@ typedef enum {
     ReportSink_BleHid,
     ReportSink_Dongle,
 } report_sink_t;
+
+// Approximate transport window intervals (ms) used by the report-construction
+// throttle. After dispatch we estimate the next free window at "now + 2 *
+// interval" (worst case: we just missed a window). The send-completion
+// callback then reduces the estimate to "now + interval".
+static constexpr uint32_t USB_REPORT_INTERVAL_MS = 1;
+static constexpr uint32_t BLE_HID_REPORT_INTERVAL_MS = 11;
+static constexpr uint32_t DONGLE_REPORT_INTERVAL_MS = 7;
+
+static uint32_t reportIntervalForSink(report_sink_t sink)
+{
+    switch (sink) {
+    case ReportSink_Usb:
+        return USB_REPORT_INTERVAL_MS;
+    case ReportSink_BleHid:
+        return BLE_HID_REPORT_INTERVAL_MS;
+    case ReportSink_Dongle:
+        return DONGLE_REPORT_INTERVAL_MS;
+    default:
+        return 0;
+    }
+}
+
+static uint32_t reportIntervalForTransport(hid_transport_t transport)
+{
+    return (transport == HID_TRANSPORT_USB) ? USB_REPORT_INTERVAL_MS : BLE_HID_REPORT_INTERVAL_MS;
+}
+
+static void noteReportDispatched(report_sink_t sink)
+{
+    UsbReportWindowEstimate = Timer_GetCurrentTime() + 2 * reportIntervalForSink(sink);
+}
+
+static void noteReportSent(hid_transport_t transport)
+{
+    UsbReportWindowEstimate = Timer_GetCurrentTime() + reportIntervalForTransport(transport);
+    EventVector_WakeMain();
+}
 
 static report_sink_t determineSink()
 {
@@ -88,19 +127,24 @@ extern "C" void Hid_TransportStateChanged(
 
 extern "C" errno_t Hid_SendKeyboardReport(const hid_keyboard_report_t *report)
 {
-    switch (determineSink()) {
+    report_sink_t sink = determineSink();
+    errno_t result;
+    switch (sink) {
     case ReportSink_Usb:
-        return keyboard_app::usb_handle().send_report(*report);
+        result = keyboard_app::usb_handle().send_report(*report);
+        break;
 #if DEVICE_IS_UHK80_RIGHT
     case ReportSink_BleHid:
-        return keyboard_app::ble_handle().send_report(*report);
+        result = keyboard_app::ble_handle().send_report(*report);
+        break;
 #endif
 #if DEVICE_IS_UHK80
     case ReportSink_Dongle:
         // TODO: propagate underlying error up the stack
         Messenger_Send2(DeviceId_Uhk_Dongle, MessageId_SyncableProperty,
             SyncablePropertyId_KeyboardReport, (const uint8_t *)report, sizeof(*report));
-        return 0;
+        result = 0;
+        break;
 #endif
     default:
 #ifdef __ZEPHYR__
@@ -108,11 +152,16 @@ extern "C" errno_t Hid_SendKeyboardReport(const hid_keyboard_report_t *report)
 #endif
         return -EHOSTUNREACH;
     }
+    if (result == 0) {
+        noteReportDispatched(sink);
+    }
+    return result;
 }
 
 extern "C" void Hid_KeyboardReportSentCallback(hid_transport_t transport)
 {
     UsbReportUpdateSemaphore &= ~UsbReportUpdate_Keyboard;
+    noteReportSent(transport);
 #if DEVICE_IS_UHK_DONGLE
     Dongle_SignalUsbReportSent();
 #endif
@@ -120,19 +169,24 @@ extern "C" void Hid_KeyboardReportSentCallback(hid_transport_t transport)
 
 extern "C" errno_t Hid_SendMouseReport(const hid_mouse_report_t *report)
 {
-    switch (determineSink()) {
+    report_sink_t sink = determineSink();
+    errno_t result;
+    switch (sink) {
     case ReportSink_Usb:
-        return mouse_app::usb_handle().send_report(*report);
+        result = mouse_app::usb_handle().send_report(*report);
+        break;
 #if DEVICE_IS_UHK80_RIGHT
     case ReportSink_BleHid:
-        return mouse_app::ble_handle().send_report(*report);
+        result = mouse_app::ble_handle().send_report(*report);
+        break;
 #endif
 #if DEVICE_IS_UHK80
     case ReportSink_Dongle:
         // TODO: propagate underlying error up the stack
         Messenger_Send2(DeviceId_Uhk_Dongle, MessageId_SyncableProperty,
             SyncablePropertyId_MouseReport, (const uint8_t *)report, sizeof(*report));
-        return 0;
+        result = 0;
+        break;
 #endif
     default:
 #ifdef __ZEPHYR__
@@ -140,11 +194,16 @@ extern "C" errno_t Hid_SendMouseReport(const hid_mouse_report_t *report)
 #endif
         return -EHOSTUNREACH;
     }
+    if (result == 0) {
+        noteReportDispatched(sink);
+    }
+    return result;
 }
 
 extern "C" void Hid_MouseReportSentCallback(hid_transport_t transport)
 {
     UsbReportUpdateSemaphore &= ~UsbReportUpdate_Mouse;
+    noteReportSent(transport);
 #if DEVICE_IS_UHK_DONGLE
     Dongle_SignalUsbReportSent();
 #endif
@@ -152,19 +211,24 @@ extern "C" void Hid_MouseReportSentCallback(hid_transport_t transport)
 
 extern "C" errno_t Hid_SendControlsReport(const hid_controls_report_t *report)
 {
-    switch (determineSink()) {
+    report_sink_t sink = determineSink();
+    errno_t result;
+    switch (sink) {
     case ReportSink_Usb:
-        return controls_app::usb_handle().send_report(*report);
+        result = controls_app::usb_handle().send_report(*report);
+        break;
 #if DEVICE_IS_UHK80_RIGHT
     case ReportSink_BleHid:
-        return controls_app::ble_handle().send_report(*report);
+        result = controls_app::ble_handle().send_report(*report);
+        break;
 #endif
 #if DEVICE_IS_UHK80
     case ReportSink_Dongle:
         // TODO: propagate underlying error up the stack
         Messenger_Send2(DeviceId_Uhk_Dongle, MessageId_SyncableProperty,
             SyncablePropertyId_ControlsReport, (const uint8_t *)report, sizeof(*report));
-        return 0;
+        result = 0;
+        break;
 #endif
     default:
 #ifdef __ZEPHYR__
@@ -172,11 +236,16 @@ extern "C" errno_t Hid_SendControlsReport(const hid_controls_report_t *report)
 #endif
         return -EHOSTUNREACH;
     }
+    if (result == 0) {
+        noteReportDispatched(sink);
+    }
+    return result;
 }
 
 extern "C" void Hid_ControlsReportSentCallback(hid_transport_t transport)
 {
     UsbReportUpdateSemaphore &= ~UsbReportUpdate_Controls;
+    noteReportSent(transport);
 #if DEVICE_IS_UHK_DONGLE
     Dongle_SignalUsbReportSent();
 #endif
